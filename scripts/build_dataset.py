@@ -36,6 +36,18 @@ FEB4RAG_COLLECTIONS = [
     "webis-touche2020",
 ]
 
+NUMERIC_PROFILE_TYPES = {
+    "long",
+    "integer",
+    "short",
+    "byte",
+    "double",
+    "float",
+    "half_float",
+    "scaled_float",
+    "unsigned_long",
+}
+
 
 def read_rows(path: Path) -> list[dict[str, Any]]:
     if path.suffix == ".jsonl":
@@ -156,8 +168,181 @@ def schema_from_row(row: dict[str, Any]) -> list[dict[str, Any]]:
     return []
 
 
+def relational_profile_type(column_type: Any) -> str:
+    """Map SQL-oriented source types to the types used by the index profiler."""
+    normalized = str(column_type or "").strip().lower()
+    if any(token in normalized for token in ("date", "time", "timestamp")):
+        return "date"
+    if "bool" in normalized:
+        return "boolean"
+    if any(
+        token in normalized
+        for token in ("real", "float", "double", "decimal", "numeric")
+    ):
+        return "double"
+    if any(token in normalized for token in ("int", "number")):
+        return "long"
+    return "text"
+
+
+def retrieval_capabilities(mapping: dict[str, str]) -> dict[str, Any]:
+    text_fields = []
+    keyword_fields = []
+    filter_fields = []
+    date_fields = []
+    vector_fields = []
+    for field, field_type in mapping.items():
+        if field_type == "text":
+            text_fields.append(field)
+        elif field_type == "keyword":
+            keyword_fields.append(field)
+            filter_fields.append(field)
+        elif field_type == "date":
+            date_fields.append(field)
+            filter_fields.append(field)
+        elif field_type == "boolean" or field_type in NUMERIC_PROFILE_TYPES:
+            filter_fields.append(field)
+        elif field_type == "knn_vector":
+            vector_fields.append(field)
+    return {
+        "has_vector_field": bool(vector_fields),
+        "vector_fields": vector_fields,
+        "text_fields": text_fields,
+        "keyword_fields": keyword_fields,
+        "filter_fields": filter_fields,
+        "date_fields": date_fields,
+    }
+
+
+def make_profile(
+    index_name: str,
+    mapping: dict[str, str],
+    *,
+    field_top_values: dict[str, list[dict[str, Any]]] | None = None,
+    doc_count: int | None = None,
+    samples: Sequence[dict[str, Any]] = (),
+    provenance: dict[str, str] | None = None,
+) -> dict[str, Any]:
+    """Create an OpenSearch-shaped profile and record each field's provenance."""
+    return {
+        "index": index_name,
+        "mapping_compressed": mapping,
+        "field_top_values": field_top_values or {},
+        "time_ranges": {},
+        "doc_count": doc_count,
+        "samples": list(samples),
+        "retrieval_capabilities": retrieval_capabilities(mapping),
+        "default_pipelines": {},
+        "profile_provenance": provenance or {
+            "mapping_compressed": "source_schema",
+            "field_top_values": "unavailable",
+            "doc_count": "unavailable",
+            "samples": "unavailable",
+        },
+    }
+
+
+def make_relational_profile(
+    source_index_id: str,
+    tables: Sequence[dict[str, Any]],
+    sqlite_profile: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    mapping = {
+        "__meta.table": "keyword",
+        "__meta.column_type": "keyword",
+    }
+    type_table_counts: defaultdict[str, int] = defaultdict(int)
+    for table in tables:
+        table_name = str(table.get("name", "")).strip()
+        table_types = set()
+        for column in table.get("columns", []):
+            column_name = str(column.get("name", "")).strip()
+            if table_name and column_name:
+                mapping[f"{table_name}.{column_name}"] = relational_profile_type(
+                    column.get("type")
+                )
+            source_type = str(column.get("type") or "unknown").strip().lower()
+            table_types.add(source_type)
+        for source_type in table_types:
+            type_table_counts[source_type] += 1
+
+    field_top_values: dict[str, list[dict[str, Any]]] = {
+        "__meta.table": [
+            {"v": str(table.get("name", "")), "c": 1}
+            for table in tables[:10]
+            if table.get("name")
+        ],
+        "__meta.column_type": [
+            {"v": source_type, "c": count}
+            for source_type, count in sorted(
+                type_table_counts.items(), key=lambda item: (-item[1], item[0])
+            )[:10]
+        ],
+    }
+    richest_table = max(
+        tables, key=lambda table: len(table.get("columns", [])), default=None
+    )
+    samples = []
+    if richest_table:
+        samples.append(
+            {
+                "_sample_type": "table_schema",
+                "__meta": {
+                    "table": richest_table.get("name"),
+                    "column_type": sorted(
+                        {
+                            str(column.get("type") or "unknown").strip().lower()
+                            for column in richest_table.get("columns", [])
+                        }
+                    ),
+                },
+                "table": richest_table.get("name"),
+                "fields": {
+                    str(column.get("name", "")): column.get("type")
+                    for column in richest_table.get("columns", [])
+                    if column.get("name")
+                },
+            }
+        )
+    doc_count = len(tables)
+    provenance = {
+        "mapping_compressed": "source_database_schema_plus_routing_metadata",
+        "field_top_values": "source_schema_low_cardinality_metadata",
+        "doc_count": "source_schema_table_count",
+        "samples": "source_schema_richest_table",
+    }
+    if sqlite_profile and sqlite_profile["doc_count"] > 0:
+        for field in sqlite_profile["keyword_subfields"]:
+            mapping[field] = "keyword"
+        field_top_values.update(sqlite_profile["field_top_values"])
+        doc_count = sqlite_profile["doc_count"]
+        samples = sqlite_profile["samples"]
+        provenance.update(
+            {
+                "mapping_compressed": (
+                    "source_database_schema_plus_sqlite_keyword_subfields"
+                ),
+                "field_top_values": "sqlite_low_cardinality_text_values",
+                "doc_count": "sqlite_total_rows_across_tables",
+                "samples": "sqlite_richest_of_first_three_rows_per_table",
+            }
+        )
+
+    return make_profile(
+        source_index_id,
+        mapping,
+        field_top_values=field_top_values,
+        doc_count=doc_count,
+        samples=samples,
+        provenance=provenance,
+    )
+
+
 def make_relational_index(
-    source: str, source_index_id: str, schema_row: dict[str, Any]
+    source: str,
+    source_index_id: str,
+    schema_row: dict[str, Any],
+    sqlite_profiles: dict[str, dict[str, Any]],
 ) -> dict[str, Any]:
     tables = schema_from_row(schema_row)
     name = normalize_text(source_index_id)
@@ -170,6 +355,9 @@ def make_relational_index(
         "name": name,
         "description": description,
         "retrieval_text": make_retrieval_text(name, description, tables),
+        "profile": make_relational_profile(
+            source_index_id, tables, sqlite_profiles.get(source_index_id)
+        ),
         "schema": {
             "tables": tables,
             "primary_keys": schema_row.get("primary_keys")
@@ -191,9 +379,13 @@ def load_schema_rows(paths: Sequence[Path]) -> dict[str, dict[str, Any]]:
 
 
 def load_spider(
-    question_paths: Sequence[Path], schema_paths: Sequence[Path]
+    question_paths: Sequence[Path],
+    schema_paths: Sequence[Path],
+    sqlite_profile_path: Path,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     schemas = load_schema_rows(schema_paths)
+    with sqlite_profile_path.open(encoding="utf-8") as handle:
+        sqlite_profiles = json.load(handle)
     indexes: dict[str, dict[str, Any]] = {}
     queries = []
     counters: defaultdict[str, int] = defaultdict(int)
@@ -202,7 +394,10 @@ def load_spider(
         db_id = str(row["db_id"])
         index_id = f"spider:{db_id}"
         schema_row = schemas.get(db_id, row)
-        indexes.setdefault(index_id, make_relational_index("spider", db_id, schema_row))
+        indexes.setdefault(
+            index_id,
+            make_relational_index("spider", db_id, schema_row, sqlite_profiles),
+        )
         position = counters[split]
         counters[split] += 1
         queries.append(
@@ -225,9 +420,13 @@ def load_spider(
 
 
 def load_bird(
-    question_paths: Sequence[Path], schema_paths: Sequence[Path]
+    question_paths: Sequence[Path],
+    schema_paths: Sequence[Path],
+    sqlite_profile_path: Path,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     schemas = load_schema_rows(schema_paths)
+    with sqlite_profile_path.open(encoding="utf-8") as handle:
+        sqlite_profiles = json.load(handle)
     indexes: dict[str, dict[str, Any]] = {}
     queries = []
     counters: defaultdict[str, int] = defaultdict(int)
@@ -236,7 +435,10 @@ def load_bird(
         db_id = str(row["db_id"])
         index_id = f"bird:{db_id}"
         schema_row = schemas.get(db_id, row)
-        indexes.setdefault(index_id, make_relational_index("bird", db_id, schema_row))
+        indexes.setdefault(
+            index_id,
+            make_relational_index("bird", db_id, schema_row, sqlite_profiles),
+        )
         source_query_id = row.get("question_id")
         if source_query_id is None:
             source_query_id = counters[split]
@@ -321,6 +523,9 @@ def load_feb4rag(
     engines_path = dataset_root / "engines" / "engines.csv"
     rm_qrels_path = dataset_root / "qrels" / "BEIR-QRELS-RM.txt"
     rs_qrels_path = dataset_root / "qrels" / "BEIR-QRELS-RS.txt"
+    profile_snapshot_path = root.parents[1] / "feb4rag" / "profile_snapshot.json"
+    with profile_snapshot_path.open(encoding="utf-8") as handle:
+        profile_snapshot = json.load(handle)
 
     request_rows = read_rows(requests_path)
     origins = {}
@@ -334,6 +539,35 @@ def load_feb4rag(
         for row in csv.DictReader(handle):
             resource = row["name"]
             description = row.get("Description", "")
+            profile_facts = profile_snapshot[resource]
+            doc_count = profile_facts["doc_count"]
+            vertical = row.get("vertical") or "unknown"
+            task = row.get("Task") or "unknown"
+            samples = []
+            for sample in profile_facts["samples"]:
+                enriched_sample = dict(sample)
+                enriched_sample["__meta"] = {
+                    "resource": resource,
+                    "vertical": vertical,
+                    "task": task,
+                }
+                samples.append(enriched_sample)
+            feb4rag_mapping = {
+                "_id": "keyword",
+                "title": "text",
+                "text": "text",
+                "__meta.resource": "keyword",
+                "__meta.vertical": "keyword",
+                "__meta.task": "keyword",
+            }
+            for field in profile_facts["keyword_subfields"]:
+                feb4rag_mapping[field] = "keyword"
+            feb4rag_top_values = {
+                "__meta.resource": [{"v": resource, "c": doc_count}],
+                "__meta.vertical": [{"v": vertical, "c": doc_count}],
+                "__meta.task": [{"v": task, "c": doc_count}],
+            }
+            feb4rag_top_values.update(profile_facts["field_top_values"])
             retrieval_text = " ".join(
                 value
                 for value in [
@@ -354,6 +588,24 @@ def load_feb4rag(
                     "name": resource,
                     "description": description,
                     "retrieval_text": normalize_text(retrieval_text),
+                    "profile": make_profile(
+                        resource,
+                        feb4rag_mapping,
+                        field_top_values=feb4rag_top_values,
+                        doc_count=doc_count,
+                        samples=samples,
+                        provenance={
+                            "mapping_compressed": (
+                                "beir_corpus_schema_plus_routing_metadata"
+                            ),
+                            "field_top_values": (
+                                profile_facts["field_top_values_source"]
+                                + "_plus_engine_metadata"
+                            ),
+                            "doc_count": profile_facts["doc_count_source"],
+                            "samples": profile_facts["sample_source"],
+                        },
+                    ),
                     "schema": None,
                     "vertical": row.get("vertical"),
                     "task": row.get("Task"),
@@ -576,6 +828,7 @@ def main() -> None:
                 raw_root / "spider" / "validation.parquet",
             ],
             [raw_root / "spider" / "spider_schema_rows_v2.json"],
+            args.data_root / "spider" / "sqlite_profile_snapshot.json",
         ),
         "bird": load_bird(
             [
@@ -583,6 +836,7 @@ def main() -> None:
                 raw_root / "bird" / "dev_with_schema.json",
             ],
             [],
+            args.data_root / "bird" / "sqlite_profile_snapshot.json",
         ),
         "feb4rag": load_feb4rag(raw_root / "feb4rag"),
     }
