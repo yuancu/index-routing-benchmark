@@ -1,0 +1,24 @@
+{
+  "candidate_count": 8,
+  "hard_negative_fraction": 0.75,
+  "indexes": 16,
+  "label_counts": {
+    "-1": 0,
+    "0": 1045,
+    "1": 3659,
+    "2": 116
+  },
+  "samples": 790,
+  "samples_with_full_gold": 82,
+  "seed": 17,
+  "split_indexes": {
+    "eval": 3,
+    "test": 3,
+    "train": 10
+  },
+  "split_samples": {
+    "eval": 150,
+    "test": 150,
+    "train": 490
+  }
+}
