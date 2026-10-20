@@ -1,0 +1,1683 @@
+{
+  "parser": "sqlglot==26.9.0",
+  "dialect": "sqlite",
+  "unit": "distinct reachable physical tables per reference SQL",
+  "percent_denominator": "SQL queries with an identifiable physical-table set",
+  "schema_mismatches": [
+    {
+      "source": "spider",
+      "split": "train",
+      "id": "spider:train:3153",
+      "database_id": "spider:assets_maintenance",
+      "missing_tables": [
+        "ref_company_types"
+      ],
+      "sql": "SELECT T1.company_name FROM Third_Party_Companies AS T1 JOIN Maintenance_Contracts AS T2 ON T1.company_id  =  T2.maintenance_contract_company_id JOIN Ref_Company_Types AS T3 ON T1.company_type_code  =  T3.company_type_code ORDER BY T2.contract_end_date DESC LIMIT 1"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6304",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "employeeterritories",
+        "territories"
+      ],
+      "sql": "SELECT T1.FirstName, T1.LastName FROM Employees AS T1 INNER JOIN EmployeeTerritories AS T2 ON T1.EmployeeID = T2.EmployeeID INNER JOIN Territories AS T3 ON T2.TerritoryID = T3.TerritoryID WHERE T3.TerritoryDescription = 'Hollis'"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6305",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "employeeterritories"
+      ],
+      "sql": "SELECT COUNT(T2.TerritoryID) FROM Employees AS T1 INNER JOIN EmployeeTerritories AS T2 ON T1.EmployeeID = T2.EmployeeID WHERE T1.FirstName = 'Nancy' AND T1.LastName = 'Davolio'"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6306",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "employeeterritories",
+        "territories"
+      ],
+      "sql": "SELECT T3.TerritoryDescription FROM Employees AS T1 INNER JOIN EmployeeTerritories AS T2 ON T1.EmployeeID = T2.EmployeeID INNER JOIN Territories AS T3 ON T2.TerritoryID = T3.TerritoryID WHERE T1.FirstName = 'Nancy' AND T1.LastName = 'Davolio'"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6307",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "employeeterritories"
+      ],
+      "sql": "SELECT COUNT(T2.TerritoryID) FROM Employees AS T1 INNER JOIN EmployeeTerritories AS T2 ON T1.EmployeeID = T2.EmployeeID WHERE T1.City = 'London'"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6308",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "employeeterritories",
+        "territories"
+      ],
+      "sql": "SELECT T3.TerritoryDescription FROM Employees AS T1 INNER JOIN EmployeeTerritories AS T2 ON T1.EmployeeID = T2.EmployeeID INNER JOIN Territories AS T3 ON T2.TerritoryID = T3.TerritoryID WHERE T1.ReportsTo = ( SELECT EmployeeID FROM Employees WHERE FirstName = 'Andrew' AND LastName = 'Fuller' )"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6309",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "employeeterritories"
+      ],
+      "sql": "SELECT COUNT(COUNTEID) FROM ( SELECT T1.EmployeeID AS COUNTEID FROM Employees AS T1 INNER JOIN EmployeeTerritories AS T2 ON T1.EmployeeID = T2.EmployeeID WHERE T1.Country = 'UK' GROUP BY T1.EmployeeID HAVING COUNT(T2.TerritoryID) > 4 ) T1"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6310",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "region",
+        "territories"
+      ],
+      "sql": "SELECT COUNT(T1.TerritoryID) FROM Territories AS T1 INNER JOIN Region AS T2 ON T1.RegionID = T2.RegionID WHERE T2.RegionDescription = 'Eastern'"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6311",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "region",
+        "territories"
+      ],
+      "sql": "SELECT DISTINCT T1.TerritoryDescription FROM Territories AS T1 INNER JOIN Region AS T2 ON T1.RegionID = T2.RegionID WHERE T2.RegionDescription = 'Eastern'"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6312",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "employeeterritories",
+        "region",
+        "territories"
+      ],
+      "sql": "SELECT COUNT(T.EmployeeID) FROM ( SELECT T3.EmployeeID FROM Region AS T1 INNER JOIN Territories AS T2 ON T1.RegionID = T2.RegionID INNER JOIN EmployeeTerritories AS T3 ON T2.TerritoryID = T3.TerritoryID WHERE T1.RegionDescription = 'Eastern' GROUP BY T3.EmployeeID ) T"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6313",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "employeeterritories",
+        "region",
+        "territories"
+      ],
+      "sql": "SELECT T1.HomePhone FROM Employees AS T1 INNER JOIN EmployeeTerritories AS T2 ON T1.EmployeeID = T2.EmployeeID INNER JOIN Territories AS T3 ON T2.TerritoryID = T3.TerritoryID INNER JOIN Region AS T4 ON T3.RegionID = T4.RegionID WHERE T4.RegionDescription = 'Eastern ' GROUP BY T1.HomePhone"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6314",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "region",
+        "territories"
+      ],
+      "sql": "SELECT ( SELECT COUNT(T1.TerritoryID) FROM Territories AS T1 INNER JOIN Region AS T2 ON T1.RegionID = T2.RegionID WHERE T2.RegionDescription = 'Eastern' ) - ( SELECT COUNT(T1.TerritoryID) FROM Territories AS T1 INNER JOIN Region AS T2 ON T1.RegionID = T2.RegionID WHERE T2.RegionDescription = 'Southern' ) AS Calu"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6315",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "order details"
+      ],
+      "sql": "SELECT T1.ProductName FROM Products AS T1 INNER JOIN `Order Details` AS T2 ON T1.ProductID = T2.ProductID WHERE T2.OrderID = 10248"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6316",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "order details"
+      ],
+      "sql": "SELECT T2.Quantity FROM Products AS T1 INNER JOIN `Order Details` AS T2 ON T1.ProductID = T2.ProductID WHERE T2.OrderID = 10273 AND T1.ProductName = 'Ikura'"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6317",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "order details"
+      ],
+      "sql": "SELECT T2.UnitPrice * T2.Quantity FROM Products AS T1 INNER JOIN `Order Details` AS T2 ON T1.ProductID = T2.ProductID WHERE T2.OrderID = 10273 AND T1.ProductName = 'Ikura'"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6318",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "order details"
+      ],
+      "sql": "SELECT T1.UnitsInStock + T1.UnitsOnOrder FROM Products AS T1 INNER JOIN `Order Details` AS T2 ON T1.ProductID = T2.ProductID WHERE T2.OrderID = 10248 ORDER BY T2.Quantity DESC LIMIT 1"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6319",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "order details"
+      ],
+      "sql": "SELECT T1.ProductName FROM Products AS T1 INNER JOIN `Order Details` AS T2 ON T1.ProductID = T2.ProductID WHERE T2.OrderID = 10248 ORDER BY T1.ReorderLevel DESC LIMIT 1"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6320",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "order details"
+      ],
+      "sql": "SELECT COUNT(T2.OrderID) FROM Products AS T1 INNER JOIN `Order Details` AS T2 ON T1.ProductID = T2.ProductID WHERE T1.ProductName = 'Tofu'"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6321",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "order details"
+      ],
+      "sql": "SELECT T2.OrderID FROM Products AS T1 INNER JOIN `Order Details` AS T2 ON T1.ProductID = T2.ProductID WHERE T1.Discontinued = 1"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6322",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "order details"
+      ],
+      "sql": "SELECT COUNT(T2.OrderID) FROM Products AS T1 INNER JOIN `Order Details` AS T2 ON T1.ProductID = T2.ProductID WHERE T1.ProductName = 'Ikura' AND T2.UnitPrice < T1.UnitPrice"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6328",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "employeeterritories"
+      ],
+      "sql": "SELECT AVG(T1.Salary) FROM Employees AS T1 INNER JOIN EmployeeTerritories AS T2 ON T1.EmployeeID = T2.EmployeeID GROUP BY T1.EmployeeID HAVING COUNT(T2.TerritoryID) > 4"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6329",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "order details"
+      ],
+      "sql": "SELECT CAST((T1.UnitPrice - T2.UnitPrice) AS REAL) * 100 / T1.UnitPrice FROM Products AS T1 INNER JOIN `Order Details` AS T2 ON T1.ProductID = T2.ProductID WHERE T2.OrderID = 10273 AND T1.ProductName = 'Ikura'"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6330",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "order details"
+      ],
+      "sql": "SELECT CAST(SUM(T2.Quantity) AS REAL) / COUNT(T2.OrderID) FROM Products AS T1 INNER JOIN `Order Details` AS T2 ON T1.ProductID = T2.ProductID WHERE T1.ProductName = 'Ikura'"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6331",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "order details"
+      ],
+      "sql": "SELECT T1.ProductName FROM Products AS T1 INNER JOIN `Order Details` AS T2 ON T1.ProductID = T2.ProductID WHERE T2.OrderID = 10248 ORDER BY T1.UnitsOnOrder / T1.UnitsInStock DESC LIMIT 1"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6335",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "employeeterritories",
+        "territories"
+      ],
+      "sql": "SELECT T3.TerritoryDescription FROM Employees AS T1 INNER JOIN EmployeeTerritories AS T2 ON T1.EmployeeID = T2.EmployeeID INNER JOIN Territories AS T3 ON T2.TerritoryID = T3.TerritoryID WHERE T1.TitleOfCourtesy = 'Mr.' AND T1.FirstName = 'Robert' AND T1.LastName = 'King'"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6336",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "employeeterritories",
+        "territories"
+      ],
+      "sql": "SELECT T3.TerritoryDescription FROM Employees AS T1 INNER JOIN EmployeeTerritories AS T2 ON T1.EmployeeID = T2.EmployeeID INNER JOIN Territories AS T3 ON T2.TerritoryID = T3.TerritoryID WHERE T1.EmployeeID = ( SELECT ReportsTo FROM Employees WHERE TitleOfCourtesy = 'Ms.' AND FirstName = 'Laura' AND LastName = 'Callahan' )"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6337",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "employeeterritories",
+        "territories"
+      ],
+      "sql": "SELECT T1.FirstName, T1.LastName FROM Employees AS T1 INNER JOIN EmployeeTerritories AS T2 ON T1.EmployeeID = T2.EmployeeID INNER JOIN Territories AS T3 ON T2.TerritoryID = T3.TerritoryID WHERE T3.TerritoryDescription = 'Santa Monica'"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6338",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "employeeterritories",
+        "territories"
+      ],
+      "sql": "SELECT T1.HomePhone FROM Employees AS T1 INNER JOIN EmployeeTerritories AS T2 ON T1.EmployeeID = T2.EmployeeID INNER JOIN Territories AS T3 ON T2.TerritoryID = T3.TerritoryID WHERE T3.TerritoryDescription = 'Savannah'"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6339",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "order details"
+      ],
+      "sql": "SELECT SUM(T2.Quantity) FROM Orders AS T1 INNER JOIN `Order Details` AS T2 ON T1.OrderID = T2.OrderID WHERE T1.CustomerID = 'HILAA' AND T1.OrderDate LIKE '1997-12-25%'"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6340",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "order details"
+      ],
+      "sql": "SELECT COUNT(T2.ProductID) FROM Orders AS T1 INNER JOIN `Order Details` AS T2 ON T1.OrderID = T2.OrderID WHERE T1.Freight = ( SELECT MAX(Freight) FROM Orders ) GROUP BY T1.OrderID"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6350",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "region",
+        "territories"
+      ],
+      "sql": "SELECT COUNT(T1.TerritoryID) FROM Territories AS T1 INNER JOIN Region AS T2 ON T1.RegionID = T2.RegionID WHERE T2.RegionDescription = 'Northern'"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6351",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "region",
+        "territories"
+      ],
+      "sql": "SELECT T2.RegionDescription FROM Territories AS T1 INNER JOIN Region AS T2 ON T1.RegionID = T2.RegionID WHERE T1.TerritoryDescription = 'Columbia'"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6354",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "region",
+        "territories"
+      ],
+      "sql": "SELECT CAST(( SELECT COUNT(T1.TerritoryID) FROM Territories AS T1 INNER JOIN Region AS T2 ON T1.RegionID = T2.RegionID WHERE T2.RegionDescription = 'Eastern' ) AS REAL) / ( SELECT COUNT(T1.TerritoryID) FROM Territories AS T1 INNER JOIN Region AS T2 ON T1.RegionID = T2.RegionID WHERE T2.RegionDescription = 'Southern' ) AS Calu"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6370",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "order details"
+      ],
+      "sql": "SELECT T2.UnitPrice * T2.Quantity + T1.Freight FROM Orders AS T1 INNER JOIN `Order Details` AS T2 ON T1.OrderID = T2.OrderID ORDER BY T2.UnitPrice * T2.Quantity + T1.Freight DESC LIMIT 2"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6372",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "order details"
+      ],
+      "sql": "SELECT DISTINCT T1.ProductName FROM Products AS T1 INNER JOIN `Order Details` AS T2 ON T1.ProductID = T2.ProductID WHERE T2.UnitPrice < 5"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6373",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "employeeterritories"
+      ],
+      "sql": "SELECT T1.Title FROM Employees AS T1 INNER JOIN EmployeeTerritories AS T2 ON T1.EmployeeID = T2.EmployeeID GROUP BY T1.Title ORDER BY COUNT(T2.TerritoryID) DESC LIMIT 1"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6374",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "order details"
+      ],
+      "sql": "SELECT T1.ProductID FROM Products AS T1 INNER JOIN `Order Details` AS T2 ON T1.ProductID = T2.ProductID GROUP BY T1.ProductID ORDER BY COUNT(*) DESC LIMIT 1"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6375",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "employeeterritories",
+        "territories"
+      ],
+      "sql": "SELECT T3.TerritoryDescription FROM Employees AS T1 INNER JOIN EmployeeTerritories AS T2 ON T1.EmployeeID = T2.EmployeeID INNER JOIN Territories AS T3 ON T2.TerritoryID = T3.TerritoryID WHERE T1.TitleOfCourtesy = 'Dr.'"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6376",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "region",
+        "territories"
+      ],
+      "sql": "SELECT DISTINCT T1.TerritoryDescription FROM Territories AS T1 INNER JOIN Region AS T2 ON T1.RegionID = T2.RegionID WHERE T2.RegionDescription = 'Eastern' ORDER BY T1.TerritoryDescription"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6377",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "employeeterritories"
+      ],
+      "sql": "SELECT CAST(COUNT(T2.TerritoryID) AS REAL) / COUNT(DISTINCT T1.EmployeeID) FROM Employees AS T1 INNER JOIN EmployeeTerritories AS T2 ON T1.EmployeeID = T2.EmployeeID WHERE T1.Title = 'Sales Representative'"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6380",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "order details"
+      ],
+      "sql": "SELECT COUNT(T2.ProductID) FROM Orders AS T1 INNER JOIN `Order Details` AS T2 ON T1.OrderID = T2.OrderID GROUP BY T2.ProductID ORDER BY COUNT(T1.Freight) DESC LIMIT 1"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6382",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "employeeterritories"
+      ],
+      "sql": "SELECT MAX(Salary) - MIN(Salary) FROM ( SELECT T1.Salary FROM Employees AS T1 INNER JOIN EmployeeTerritories AS T2 ON T1.EmployeeID = T2.EmployeeID GROUP BY T1.EmployeeID, T1.Salary ORDER BY COUNT(T2.TerritoryID) DESC LIMIT 2 ) T1"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6384",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "customer and suppliers by city"
+      ],
+      "sql": "SELECT CompanyName FROM `Customer and Suppliers by City` WHERE CITY = ( SELECT City FROM `Customer and Suppliers by City` GROUP BY City ORDER BY COUNT(Relationship) DESC LIMIT 1 )"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6387",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "invoices"
+      ],
+      "sql": "SELECT AVG(UnitPrice) AS avg FROM Invoices WHERE Country = 'UK'"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6388",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "order details"
+      ],
+      "sql": "SELECT ProductID FROM `Order Details` GROUP BY ProductID ORDER BY SUM(Quantity) DESC LIMIT 1"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6391",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "employeeterritories",
+        "territories"
+      ],
+      "sql": "SELECT T1.FirstName, T1.LastName FROM Employees AS T1 INNER JOIN EmployeeTerritories AS T2 ON T1.EmployeeID = T2.EmployeeID INNER JOIN Territories AS T3 ON T2.TerritoryID = T3.TerritoryID WHERE T3.TerritoryDescription = 'Wilton'"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6393",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "order details"
+      ],
+      "sql": "SELECT T3.ProductName FROM Orders AS T1 INNER JOIN `Order Details` AS T2 ON T1.OrderID = T2.OrderID INNER JOIN Products AS T3 ON T2.ProductID = T3.ProductID WHERE T1.OrderDate LIKE '1998%' ORDER BY T3.UnitPrice + T1.Freight DESC LIMIT 5"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6395",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "order details"
+      ],
+      "sql": "SELECT T3.ProductName FROM Orders AS T1 INNER JOIN `Order Details` AS T2 ON T1.OrderID = T2.OrderID INNER JOIN Products AS T3 ON T2.ProductID = T3.ProductID GROUP BY T3.ProductName ORDER BY COUNT(*) DESC LIMIT 10"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6397",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "employeeterritories",
+        "region",
+        "territories"
+      ],
+      "sql": "SELECT DISTINCT T1.FirstName, T1.LastName, T4.RegionDescription FROM Employees AS T1 INNER JOIN EmployeeTerritories AS T2 ON T1.EmployeeID = T2.EmployeeID INNER JOIN Territories AS T3 ON T2.TerritoryID = T3.TerritoryID INNER JOIN Region AS T4 ON T3.RegionID = T4.RegionID ORDER BY T1.FirstName"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6399",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "order details"
+      ],
+      "sql": "SELECT AVG(T2.UnitPrice) FROM Orders AS T1 INNER JOIN `Order Details` AS T2 ON T1.OrderID = T2.OrderID INNER JOIN Shippers AS T3 ON T1.ShipVia = T3.ShipperID WHERE T1.OrderDate LIKE '1997%' AND T3.CompanyName = 'United Package'"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6403",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "order details"
+      ],
+      "sql": "SELECT UnitPrice * Quantity * (1 - Discount) AS THETOP FROM `Order Details` ORDER BY UnitPrice * Quantity * (1 - Discount) DESC LIMIT 1"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6407",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "employeeterritories",
+        "territories"
+      ],
+      "sql": "SELECT T3.TerritoryDescription FROM Employees AS T1 INNER JOIN EmployeeTerritories AS T2 ON T1.EmployeeID = T2.EmployeeID INNER JOIN Territories AS T3 ON T2.TerritoryID = T3.TerritoryID WHERE T1.Title = 'Inside Sales Coordinator'"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6410",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "employeeterritories",
+        "region",
+        "territories"
+      ],
+      "sql": "SELECT DISTINCT T1.FirstName, T1.LastName FROM Employees AS T1 INNER JOIN EmployeeTerritories AS T2 ON T1.EmployeeID = T2.EmployeeID INNER JOIN Territories AS T3 ON T2.TerritoryID = T3.TerritoryID INNER JOIN Region AS T4 ON T3.RegionID = T4.RegionID WHERE T4.RegionDescription = 'Northern'"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6412",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "order details"
+      ],
+      "sql": "SELECT T3.ProductName FROM Orders AS T1 INNER JOIN `Order Details` AS T2 ON T1.OrderID = T2.OrderID INNER JOIN Products AS T3 ON T2.ProductID = T3.ProductID WHERE T1.ShipCity = 'Paris'"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6413",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "order details"
+      ],
+      "sql": "SELECT T4.ProductName FROM Customers AS T1 INNER JOIN Orders AS T2 ON T1.CustomerID = T2.CustomerID INNER JOIN `Order Details` AS T3 ON T2.OrderID = T3.OrderID INNER JOIN Products AS T4 ON T3.ProductID = T4.ProductID WHERE T1.PostalCode = 28023 ORDER BY T3.Quantity LIMIT 1"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6414",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "employeeterritories",
+        "region",
+        "territories"
+      ],
+      "sql": "SELECT DISTINCT T1.FirstName, T1.LastName FROM Employees AS T1 INNER JOIN EmployeeTerritories AS T2 ON T1.EmployeeID = T2.EmployeeID INNER JOIN Territories AS T3 ON T2.TerritoryID = T3.TerritoryID INNER JOIN Region AS T4 ON T3.RegionID = T4.RegionID WHERE T4.RegionDescription = 'Southern' AND T1.ReportsTo = ( SELECT EmployeeID FROM Employees WHERE FirstName = 'Andrew' AND LastName = 'Fuller' )"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6415",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "order details"
+      ],
+      "sql": "SELECT T2.OrderDate FROM Customers AS T1 INNER JOIN Orders AS T2 ON T1.CustomerID = T2.CustomerID INNER JOIN `Order Details` AS T3 ON T2.OrderID = T3.OrderID INNER JOIN Products AS T4 ON T3.ProductID = T4.ProductID WHERE T4.ProductName = 'Filo Mix' AND T3.Quantity = 9 AND T1.CompanyName = 'Du monde entier'"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6416",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "order details"
+      ],
+      "sql": "SELECT T3.CategoryName FROM Products AS T1 INNER JOIN `Order Details` AS T2 ON T1.ProductID = T2.ProductID INNER JOIN Categories AS T3 ON T1.CategoryID = T3.CategoryID WHERE T2.OrderID = 10933"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6417",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "employeeterritories",
+        "territories"
+      ],
+      "sql": "SELECT T1.HomePhone FROM Employees AS T1 INNER JOIN EmployeeTerritories AS T2 ON T1.EmployeeID = T2.EmployeeID INNER JOIN Territories AS T3 ON T2.TerritoryID = T3.TerritoryID WHERE T3.TerritoryDescription = 'Portsmouth'"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6418",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "order details"
+      ],
+      "sql": "SELECT CAST(SUM(T2.Quantity) AS REAL) / COUNT(T2.OrderID) FROM Orders AS T1 INNER JOIN `Order Details` AS T2 ON T1.OrderID = T2.OrderID INNER JOIN Shippers AS T3 ON T1.ShipVia = T3.ShipperID WHERE T1.ShippedDate LIKE '1996-11%' AND T3.CompanyName = 'Federal Shipping'"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6439",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "territories"
+      ],
+      "sql": "SELECT COUNT(TerritoryID) FROM Territories"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6440",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "order details"
+      ],
+      "sql": "SELECT SUM(UnitPrice) FROM `Order Details` GROUP BY OrderID ORDER BY SUM(UnitPrice) DESC LIMIT 1"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6443",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "region",
+        "territories"
+      ],
+      "sql": "SELECT T2.RegionDescription FROM Territories AS T1 INNER JOIN Region AS T2 ON T1.RegionID = T2.RegionID WHERE T1.TerritoryDescription = 'Hoffman Estates'"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6446",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "order details"
+      ],
+      "sql": "SELECT T2.Quantity FROM Products AS T1 INNER JOIN `Order Details` AS T2 ON T2.ProductID = T1.ProductID WHERE T1.ProductName = 'Manjimup Dried Apples' ORDER BY T2.Quantity DESC LIMIT 1"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6448",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "region",
+        "territories"
+      ],
+      "sql": "SELECT DISTINCT T1.TerritoryDescription FROM Territories AS T1 INNER JOIN Region AS T2 ON T1.RegionID = T2.RegionID WHERE T2.RegionDescription = 'Southern'"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6451",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "order details"
+      ],
+      "sql": "SELECT T3.ProductName FROM Orders AS T1 INNER JOIN `Order Details` AS T2 ON T1.OrderID = T2.OrderID INNER JOIN Products AS T3 ON T2.ProductID = T3.ProductID WHERE T1.ShipAddress = 'Starenweg 5' GROUP BY T3.ProductName"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6453",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "employeeterritories",
+        "territories"
+      ],
+      "sql": "SELECT T3.TerritoryDescription FROM Employees AS T1 INNER JOIN EmployeeTerritories AS T2 ON T1.EmployeeID = T2.EmployeeID INNER JOIN Territories AS T3 ON T2.TerritoryID = T3.TerritoryID WHERE T1.LastName = 'King' AND T1.FirstName = 'Robert'"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6479",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "sales totals by amount"
+      ],
+      "sql": "SELECT CompanyName FROM `Sales Totals by Amount` ORDER BY SaleAmount DESC LIMIT 10"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6480",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "sales by category"
+      ],
+      "sql": "SELECT AVG(ProductSales) FROM `Sales by Category` GROUP BY CategoryName"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6481",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "order details"
+      ],
+      "sql": "SELECT SUM(T2.Quantity) FROM Products AS T1 INNER JOIN `Order Details` AS T2 ON T1.ProductID = T2.ProductID WHERE T1.ProductName LIKE 'Uncle Bob%s Organic Dried Pears'"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6482",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "order details"
+      ],
+      "sql": "SELECT COUNT(T1.ProductID) FROM Products AS T1 INNER JOIN `Order Details` AS T2 ON T1.ProductID = T2.ProductID INNER JOIN Categories AS T3 ON T1.CategoryID = T3.CategoryID WHERE T3.CategoryName = 'Seafood' AND T2.Quantity > 50"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6485",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "employeeterritories"
+      ],
+      "sql": "SELECT T1.FirstName, T1.LastName FROM Employees AS T1 INNER JOIN EmployeeTerritories AS T2 ON T1.EmployeeID = T2.EmployeeID WHERE T2.EmployeeID < 4"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6486",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "employeeterritories",
+        "region",
+        "territories"
+      ],
+      "sql": "SELECT COUNT(DISTINCT T1.FirstName) FROM Employees AS T1 INNER JOIN EmployeeTerritories AS T2 ON T1.EmployeeID = T2.EmployeeID INNER JOIN Territories AS T3 ON T2.TerritoryID = T3.TerritoryID INNER JOIN Region AS T4 ON T3.RegionID = T4.RegionID WHERE T4.RegionDescription = 'Eastern'"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6489",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "order details"
+      ],
+      "sql": "SELECT T1.ReorderLevel FROM Products AS T1 INNER JOIN `Order Details` AS T2 ON T1.ProductID = T2.ProductID WHERE T2.Quantity = 1"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6491",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "employeeterritories"
+      ],
+      "sql": "SELECT COUNT(T2.TerritoryID) FROM Employees AS T1 INNER JOIN EmployeeTerritories AS T2 ON T1.EmployeeID = T2.EmployeeID WHERE T1.FirstName = 'Anne' AND T1.LastName = 'Dodsworth'"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6493",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "order details"
+      ],
+      "sql": "SELECT T1.ContactName, T1.Phone FROM Customers AS T1 INNER JOIN Orders AS T2 ON T1.CustomerID = T2.CustomerID INNER JOIN `Order Details` AS T3 ON T2.OrderID = T3.OrderID GROUP BY T2.OrderID, T1.ContactName, T1.Phone ORDER BY SUM(T3.UnitPrice * T3.Quantity * (1 - T3.Discount)) DESC LIMIT 1"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6494",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "order details"
+      ],
+      "sql": "SELECT T4.LastName, T4.FirstName, T4.ReportsTo , T1.Quantity * T1.UnitPrice * (1 - T1.Discount) AS payment FROM `Order Details` AS T1 INNER JOIN Orders AS T2 ON T1.OrderID = T2.OrderID INNER JOIN Customers AS T3 ON T2.CustomerID = T3.CustomerID INNER JOIN Employees AS T4 ON T2.EmployeeID = T4.EmployeeID ORDER BY payment DESC LIMIT 1"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6499",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "region",
+        "territories"
+      ],
+      "sql": "SELECT COUNT(T1.RegionID) FROM Territories AS T1 INNER JOIN Region AS T2 ON T1.RegionID = T2.RegionID WHERE T2.RegionDescription = 'Eastern'"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6500",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "region",
+        "territories"
+      ],
+      "sql": "SELECT T2.RegionID FROM Territories AS T1 INNER JOIN Region AS T2 ON T1.RegionID = T2.RegionID GROUP BY T2.RegionID ORDER BY COUNT(T1.TerritoryID) DESC LIMIT 1"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6501",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "region",
+        "territories"
+      ],
+      "sql": "SELECT T2.RegionDescription FROM Territories AS T1 INNER JOIN Region AS T2 ON T1.RegionID = T2.RegionID WHERE T1.TerritoryID = 2116"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6519",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "order details"
+      ],
+      "sql": "SELECT SUM(T2.UnitPrice * T2.Quantity) FROM Products AS T1 INNER JOIN `Order Details` AS T2 ON T1.ProductID = T2.ProductID WHERE T1.Discontinued = 1"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6521",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "order details"
+      ],
+      "sql": "SELECT COUNT(T2.ProductID) FROM Categories AS T1 INNER JOIN Products AS T2 ON T1.CategoryID = T2.CategoryID INNER JOIN `Order Details` AS T3 ON T2.ProductID = T3.ProductID INNER JOIN Orders AS T4 ON T3.OrderID = T4.OrderID WHERE T1.CategoryName = 'Condiments' AND T1.CategoryID = 2 AND T4.OrderDate LIKE '1997%'"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6522",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "order details"
+      ],
+      "sql": "SELECT T1.CompanyName FROM Customers AS T1 INNER JOIN Orders AS T2 ON T1.CustomerID = T2.CustomerID INNER JOIN `Order Details` AS T3 ON T2.OrderID = T3.OrderID GROUP BY T1.CompanyName ORDER BY COUNT(T3.ProductID) DESC LIMIT 1"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6525",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "region",
+        "territories"
+      ],
+      "sql": "SELECT COUNT(T2.RegionDescription), T1.TerritoryDescription, COUNT(*) AS num FROM Territories AS T1 INNER JOIN Region AS T2 ON T1.RegionID = T2.RegionID GROUP BY T1.TerritoryDescription ORDER BY num DESC LIMIT 1"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6527",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "employeeterritories"
+      ],
+      "sql": "SELECT COUNT(EID) FROM ( SELECT T1.EmployeeID AS EID FROM Employees AS T1 INNER JOIN EmployeeTerritories AS T2 ON T1.EmployeeID = T2.EmployeeID WHERE T1.TitleOfCourtesy IN ('Ms.' OR 'Mrs.') GROUP BY T1.EmployeeID HAVING COUNT(T2.TerritoryID) >= 3 ) T1"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6529",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "order details"
+      ],
+      "sql": "SELECT T1.CompanyName FROM Customers AS T1 INNER JOIN Orders AS T2 ON T1.CustomerID = T2.CustomerID INNER JOIN `Order Details` AS T3 ON T2.OrderID = T3.OrderID WHERE T3.Discount = 0 GROUP BY T1.CompanyName ORDER BY SUM(T3.UnitPrice * T3.Quantity) DESC LIMIT 1"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6530",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "order details"
+      ],
+      "sql": "SELECT SUM(T3.UnitPrice * T3.Quantity) FROM Employees AS T1 INNER JOIN Orders AS T2 ON T1.EmployeeID = T2.EmployeeID INNER JOIN `Order Details` AS T3 ON T2.OrderID = T3.OrderID WHERE T1.FirstName = 'Nancy' AND T1.LastName = 'Davolio' AND T2.OrderDate LIKE '1996-12%' AND T3.Discount = 0"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6531",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "order details"
+      ],
+      "sql": "SELECT SUM(T2.UnitPrice * T2.Quantity * (1 - T2.Discount)) FROM Orders AS T1 INNER JOIN `Order Details` AS T2 ON T1.OrderID = T2.OrderID WHERE T1.OrderDate LIKE '1997%'"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6532",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "order details"
+      ],
+      "sql": "SELECT SUM(T2.UnitPrice * T2.Quantity * (1 - T2.Discount)) / 3 FROM Orders AS T1 INNER JOIN `Order Details` AS T2 ON T1.OrderID = T2.OrderID WHERE T1.ShippedDate BETWEEN '1996-01-01 00:00:00' AND '1998-12-31 23:59:59'"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6535",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "order details"
+      ],
+      "sql": "SELECT ProductID, OrderID, UnitPrice FROM `Order Details` WHERE UnitPrice * Quantity * (1 - Discount) > 15000"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6536",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "employeeterritories"
+      ],
+      "sql": "SELECT TerritoryID FROM EmployeeTerritories WHERE EmployeeID = 7"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6548",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "employeeterritories",
+        "region",
+        "territories"
+      ],
+      "sql": "SELECT T3.TerritoryID, T3.TerritoryDescription, T4.RegionDescription FROM Employees AS T1 INNER JOIN EmployeeTerritories AS T2 ON T1.EmployeeID = T2.EmployeeID INNER JOIN Territories AS T3 ON T2.TerritoryID = T3.TerritoryID INNER JOIN Region AS T4 ON T3.RegionID = T4.RegionID WHERE T1.TitleOfCourtesy = 'Mrs.' AND T1.LastName = 'Peacock' AND T1.FirstName = 'Margaret'"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6550",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "order details"
+      ],
+      "sql": "SELECT T3.ProductName FROM Orders AS T1 INNER JOIN `Order Details` AS T2 ON T1.OrderID = T2.OrderID INNER JOIN Products AS T3 ON T2.ProductID = T3.ProductID WHERE T1.RequiredDate LIKE '1998-03-26%' AND T1.CustomerID = 'WILMK'"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6553",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "order details"
+      ],
+      "sql": "SELECT T4.ProductName FROM Customers AS T1 INNER JOIN Orders AS T2 ON T1.CustomerID = T2.CustomerID INNER JOIN `Order Details` AS T3 ON T2.OrderID = T3.OrderID INNER JOIN Products AS T4 ON T3.ProductID = T4.ProductID WHERE T1.Country = 'Norway' AND STRFTIME('%Y', T2.OrderDate) = '1996'"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6554",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "order details"
+      ],
+      "sql": "SELECT T5.CompanyName FROM Employees AS T1 INNER JOIN Orders AS T2 ON T1.EmployeeID = T2.EmployeeID INNER JOIN `Order Details` AS T3 ON T2.OrderID = T3.OrderID INNER JOIN Products AS T4 ON T3.ProductID = T4.ProductID INNER JOIN Suppliers AS T5 ON T4.SupplierID = T5.SupplierID WHERE T1.FirstName = 'Anne' AND T1.LastName = 'Dodsworth' AND T2.ShipCountry = 'Brazil' AND T2.OrderDate LIKE '1996-12%'"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6556",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "region",
+        "territories"
+      ],
+      "sql": "SELECT T1.TerritoryID, T1.TerritoryDescription FROM Territories AS T1 INNER JOIN Region AS T2 ON T1.RegionID = T2.RegionID WHERE T2.RegionDescription = 'Southern'"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6557",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "order details"
+      ],
+      "sql": "SELECT SUM(T2.UnitPrice * T2.Quantity * (1 - T2.Discount)) / COUNT(T1.ProductID) FROM Products AS T1 INNER JOIN `Order Details` AS T2 ON T1.ProductID = T2.ProductID INNER JOIN Categories AS T3 ON T1.CategoryID = T3.CategoryID WHERE T3.CategoryName = 'Confections'"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6558",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "order details"
+      ],
+      "sql": "SELECT SUM(T3.UnitPrice * T3.Quantity * (1 - T3.Discount)) AS TOTALPAYMENT FROM Customers AS T1 INNER JOIN Orders AS T2 ON T1.CustomerID = T2.CustomerID INNER JOIN `Order Details` AS T3 ON T2.OrderID = T3.OrderID WHERE T1.City = 'San Francisco'"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6561",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "order details"
+      ],
+      "sql": "SELECT T3.Country, T1.OrderID FROM `Order Details` AS T1 INNER JOIN Products AS T2 ON T1.ProductID = T2.ProductID INNER JOIN Suppliers AS T3 ON T2.SupplierID = T3.SupplierID WHERE T2.ProductName = 'Ipoh Coffee' ORDER BY T1.UnitPrice * T1.Quantity * (1 - T1.Discount) DESC LIMIT 1"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6562",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "order details"
+      ],
+      "sql": "SELECT T1.ProductName , SUM(T2.UnitPrice * T2.Quantity * (1 - T2.Discount)) FROM Products AS T1 INNER JOIN `Order Details` AS T2 ON T1.ProductID = T2.ProductID WHERE T2.OrderID = 10979 GROUP BY T1.ProductName"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6565",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "order details"
+      ],
+      "sql": "SELECT DISTINCT T3.ProductName FROM Orders AS T1 INNER JOIN `Order Details` AS T2 ON T1.OrderID = T2.OrderID INNER JOIN Products AS T3 ON T2.ProductID = T3.ProductID WHERE DATEDIFF(T1.ShippedDate, T1.RequiredDate) < 0"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6566",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "order details"
+      ],
+      "sql": "SELECT T4.ProductName FROM Employees AS T1 INNER JOIN Orders AS T2 ON T1.EmployeeID = T2.EmployeeID INNER JOIN `Order Details` AS T3 ON T2.OrderID = T3.OrderID INNER JOIN Products AS T4 ON T3.ProductID = T4.ProductID WHERE T1.Title = 'Inside Sales Coordinator' AND T2.ShippedDate LIKE '1996%' AND T2.ShipCountry = 'Mexico'"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6570",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "order details"
+      ],
+      "sql": "SELECT T1.CompanyName FROM Customers AS T1 INNER JOIN Orders AS T2 ON T1.CustomerID = T2.CustomerID INNER JOIN `Order Details` AS T3 ON T2.OrderID = T3.OrderID GROUP BY T2.CustomerID ORDER BY SUM(T3.UnitPrice * T3.Quantity * (1 - T3.Discount)) DESC LIMIT 1"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6571",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "employeeterritories",
+        "region",
+        "territories"
+      ],
+      "sql": "SELECT COUNT(T2.EmployeeID) FROM Territories AS T1 INNER JOIN EmployeeTerritories AS T2 ON T1.TerritoryID = T2.TerritoryID INNER JOIN Region AS T3 ON T1.RegionID = T3.RegionID WHERE T3.RegionDescription = 'Northern'"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6572",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "order details"
+      ],
+      "sql": "SELECT SUM(UnitPrice * Quantity * (1 - Discount)) / COUNT(OrderID) FROM `Order Details`"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6576",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "order details"
+      ],
+      "sql": "SELECT T4.ProductName, T3.Quantity FROM Employees AS T1 INNER JOIN Orders AS T2 ON T1.EmployeeID = T2.EmployeeID INNER JOIN `Order Details` AS T3 ON T2.OrderID = T3.OrderID INNER JOIN Products AS T4 ON T3.ProductID = T4.ProductID INNER JOIN Customers AS T5 ON T2.CustomerID = T5.CustomerID WHERE T1.FirstName = 'Nancy' AND T1.LastName = 'Davolio' AND T5.CompanyName = 'GROSELLA-Restaurante'"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6577",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "order details"
+      ],
+      "sql": "SELECT COUNT(T2.OrderID) , SUM(T3.UnitPrice * T3.Quantity * (1 - T3.Discount)) / COUNT(T2.OrderID) FROM Customers AS T1 INNER JOIN Orders AS T2 ON T1.CustomerID = T2.CustomerID INNER JOIN `Order Details` AS T3 ON T2.OrderID = T3.OrderID WHERE T1.CompanyName = 'Laughing Bacchus Wine Cellars'"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6578",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "order details"
+      ],
+      "sql": "SELECT COUNT(T2.Quantity) FROM Products AS T1 INNER JOIN `Order Details` AS T2 ON T1.ProductID = T2.ProductID WHERE T1.ProductName = 'Pavlova'"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6600",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "order details"
+      ],
+      "sql": "SELECT DISTINCT T2.ProductName FROM Suppliers AS T1 INNER JOIN Products AS T2 ON T1.SupplierID = T2.SupplierID INNER JOIN `Order Details` AS T3 ON T2.ProductID = T3.ProductID WHERE T1.CompanyName = 'Tokyo Traders' AND T3.Quantity > 40"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6602",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "order details"
+      ],
+      "sql": "SELECT SUM(CASE WHEN T2.Quantity < 50 THEN 1 ELSE 0 END) , CAST(SUM(IF(T2.Quantity < 50, 1, 0)) AS REAL) / COUNT(T1.ProductID) FROM Products AS T1 INNER JOIN `Order Details` AS T2 ON T1.ProductID = T2.ProductID"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6603",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "order details"
+      ],
+      "sql": "SELECT SUM(IF(T1.ProductName = 'Geitost', 1, 0)) AS sum , CAST(SUM(IF(T1.ProductName = 'Geitost', 1, 0)) AS REAL) / COUNT(T1.ProductID) FROM Products AS T1 INNER JOIN `Order Details` AS T2 ON T1.ProductID = T2.ProductID"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6610",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "employeeterritories",
+        "territories"
+      ],
+      "sql": "SELECT T1.FirstName, T1.LastName FROM Employees AS T1 INNER JOIN EmployeeTerritories AS T2 ON T1.EmployeeID = T2.EmployeeID INNER JOIN Territories AS T3 ON T2.TerritoryID = T3.TerritoryID WHERE T3.TerritoryDescription = 'Denver'"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6611",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "employeeterritories",
+        "territories"
+      ],
+      "sql": "SELECT T3.TerritoryDescription FROM Employees AS T1 INNER JOIN EmployeeTerritories AS T2 ON T1.EmployeeID = T2.EmployeeID INNER JOIN Territories AS T3 ON T2.TerritoryID = T3.TerritoryID WHERE T1.FirstName = 'Laura' AND T1.LastName = 'Callahan'"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6618",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "order details"
+      ],
+      "sql": "SELECT T1.ShipCity FROM Orders AS T1 INNER JOIN `Order Details` AS T2 ON T1.OrderID = T2.OrderID INNER JOIN Products AS T3 ON T2.ProductID = T3.ProductID WHERE T3.ProductName = 'Mishi Kobe Niku'"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6620",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "territories"
+      ],
+      "sql": "SELECT COUNT(TerritoryID) FROM Territories WHERE RegionID = 1"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6621",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "territories"
+      ],
+      "sql": "SELECT COUNT(TerritoryDescription) FROM Territories WHERE RegionID IN (1, 2, 3, 4) GROUP BY RegionID"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6627",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "order details"
+      ],
+      "sql": "SELECT T1.ProductName, T2.Quantity FROM Products AS T1 INNER JOIN `Order Details` AS T2 ON T1.ProductID = T2.ProductID ORDER BY T1.UnitPrice DESC LIMIT 1"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6629",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "order details"
+      ],
+      "sql": "SELECT T2.ProductID FROM Customers AS T1 INNER JOIN `Order Details` AS T2 WHERE T1.Country = 'Germany' GROUP BY T2.ProductID ORDER BY COUNT(T2.ProductID) DESC LIMIT 1"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6630",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "order details"
+      ],
+      "sql": "SELECT SUM(T2.Quantity * T2.UnitPrice) FROM Orders AS T1 INNER JOIN `Order Details` AS T2 ON T1.OrderID = T2.OrderID INNER JOIN Shippers AS T3 ON T1.ShipVia = T3.ShipperID WHERE T3.CompanyName = 'Speedy Express' AND T1.ShipCountry = 'Brazil'"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6631",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "order details"
+      ],
+      "sql": "SELECT COUNT(T1.EmployeeID), SUM(T3.Quantity * T3.UnitPrice) FROM Employees AS T1 INNER JOIN Orders AS T2 ON T1.EmployeeID = T2.EmployeeID INNER JOIN `Order Details` AS T3 ON T2.OrderID = T3.OrderID WHERE T1.ReportsTo = 2 ORDER BY SUM(T3.UnitPrice * T3.Quantity) DESC LIMIT 1"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6632",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "order details"
+      ],
+      "sql": "SELECT SUM(T3.UnitPrice * T3.Quantity) FROM Employees AS T1 INNER JOIN Orders AS T2 ON T1.EmployeeID = T2.EmployeeID INNER JOIN `Order Details` AS T3 ON T2.OrderID = T3.OrderID WHERE T1.Title = 'Sales Representative' ORDER BY SUM(T3.UnitPrice * T3.Quantity)"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6633",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "employeeterritories",
+        "territories"
+      ],
+      "sql": "SELECT COUNT(T1.EmployeeID), T3.RegionID FROM Employees AS T1 INNER JOIN EmployeeTerritories AS T2 ON T1.EmployeeID = T2.EmployeeID INNER JOIN Territories AS T3 ON T2.TerritoryID = T3.TerritoryID WHERE T1.Country = 'UK' GROUP BY T3.RegionID"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6634",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "order details"
+      ],
+      "sql": "SELECT T1.CompanyName, T2.ShipCountry FROM Customers AS T1 INNER JOIN Orders AS T2 ON T1.CustomerID = T2.CustomerID INNER JOIN `Order Details` AS T3 ON T2.OrderID = T3.OrderID GROUP BY T1.CompanyName, T2.ShipCountry ORDER BY COUNT(T3.ProductID) DESC LIMIT 1"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6635",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "order details"
+      ],
+      "sql": "SELECT T1.CustomerID, T4.CategoryName FROM Orders AS T1 INNER JOIN `Order Details` AS T2 ON T1.OrderID = T2.OrderID INNER JOIN Products AS T3 ON T2.ProductID = T3.ProductID INNER JOIN Categories AS T4 ON T3.CategoryID = T4.CategoryID ORDER BY T1.CustomerID DESC, T4.CategoryName DESC"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6636",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "order details"
+      ],
+      "sql": "SELECT COUNT(T1.UnitPrice * T3.Quantity) FROM Products AS T1 INNER JOIN Categories AS T2 ON T1.CategoryID = T2.CategoryID INNER JOIN `Order Details` AS T3 ON T1.ProductID = T3.ProductID WHERE T2.CategoryName = 'Confections' GROUP BY T3.Quantity ORDER BY T3.Quantity DESC LIMIT 1"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6642",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "employeeterritories",
+        "territories"
+      ],
+      "sql": "SELECT T1.FirstName, T1.LastName FROM Employees AS T1 INNER JOIN EmployeeTerritories AS T2 ON T1.EmployeeID = T2.EmployeeID INNER JOIN Territories AS T3 ON T2.TerritoryID = T3.TerritoryID WHERE T3.TerritoryDescription = 'Morristown'"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6643",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "region",
+        "territories"
+      ],
+      "sql": "SELECT DISTINCT T1.TerritoryDescription FROM Territories AS T1 INNER JOIN Region AS T2 ON T1.RegionID = T2.RegionID WHERE T2.RegionDescription = 'Northern'"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6645",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "region",
+        "territories"
+      ],
+      "sql": "SELECT CAST(( SELECT COUNT(T1.TerritoryID) FROM Territories AS T1 INNER JOIN Region AS T2 ON T1.RegionID = T2.RegionID WHERE T2.RegionDescription = 'Northern' ) AS REAL) * 100 / ( SELECT COUNT(T1.TerritoryID) FROM Territories AS T1 INNER JOIN Region AS T2 ON T1.RegionID = T2.RegionID WHERE T2.RegionDescription = 'Westerns' ) AS Calu"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6646",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "employeeterritories"
+      ],
+      "sql": "SELECT EmployeeID FROM EmployeeTerritories WHERE TerritoryID BETWEEN 1000 AND 2000"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6647",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "employeeterritories",
+        "region",
+        "territories"
+      ],
+      "sql": "SELECT T3.RegionID, T3.TerritoryDescription, T4.RegionDescription FROM Employees AS T1 INNER JOIN EmployeeTerritories AS T2 ON T1.EmployeeID = T2.EmployeeID INNER JOIN Territories AS T3 ON T2.TerritoryID = T3.TerritoryID INNER JOIN Region AS T4 ON T3.RegionID = T4.RegionID WHERE T1.LastName = 'Davolio' AND T1.FirstName = 'Nancy'"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6649",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "order details"
+      ],
+      "sql": "SELECT SUM(T2.UnitPrice * T2.Quantity * (1 - T2.Discount)) AS sum FROM Products AS T1 INNER JOIN `Order Details` AS T2 ON T1.ProductID = T2.ProductID WHERE T1.ProductName = 'Vegie-spread'"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6650",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "order details"
+      ],
+      "sql": "SELECT T1.CompanyName FROM Suppliers AS T1 INNER JOIN Products AS T2 ON T1.SupplierID = T2.SupplierID INNER JOIN `Order Details` AS T3 ON T2.ProductID = T3.ProductID INNER JOIN Orders AS T4 ON T3.OrderID = T4.OrderID WHERE date(T4.OrderDate) = '1996-08-14'"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:6651",
+      "database_id": "bird:retail_world",
+      "missing_tables": [
+        "order details"
+      ],
+      "sql": "SELECT T2.ProductName, T1.CompanyName FROM Suppliers AS T1 INNER JOIN Products AS T2 ON T1.SupplierID = T2.SupplierID INNER JOIN `Order Details` AS T3 ON T2.ProductID = T3.ProductID WHERE T3.OrderID = 10337 ORDER BY T2.ReorderLevel DESC LIMIT 1"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:7122",
+      "database_id": "bird:works_cycles",
+      "missing_tables": [
+        "personphone"
+      ],
+      "sql": "SELECT T2.BusinessEntityID FROM PhoneNumberType AS T1 INNER JOIN PersonPhone AS T2 ON T1.PhoneNumberTypeID = T2.PhoneNumberTypeID WHERE T1.Name = 'Cell' LIMIT 3"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:7129",
+      "database_id": "bird:works_cycles",
+      "missing_tables": [
+        "personphone"
+      ],
+      "sql": "SELECT T2.Name FROM PersonPhone AS T1 INNER JOIN PhoneNumberType AS T2 ON T1.PhoneNumberTypeID = T2.PhoneNumberTypeID GROUP BY T2.Name ORDER BY COUNT(T2.Name) DESC"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:7172",
+      "database_id": "bird:works_cycles",
+      "missing_tables": [
+        "personphone"
+      ],
+      "sql": "SELECT T2.PhoneNumber FROM Person AS T1 INNER JOIN PersonPhone AS T2 ON T1.BusinessEntityID = T2.BusinessEntityID WHERE T1.FirstName = 'Gerald' AND T1.LastName = 'Patel'"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:7173",
+      "database_id": "bird:works_cycles",
+      "missing_tables": [
+        "personphone"
+      ],
+      "sql": "SELECT T2.Name FROM PersonPhone AS T1 INNER JOIN PhoneNumberType AS T2 USING (PhoneNumberTypeID) WHERE T1.BusinessEntityID = 13626"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:7178",
+      "database_id": "bird:works_cycles",
+      "missing_tables": [
+        "personphone"
+      ],
+      "sql": "SELECT CAST(SUM(CASE WHEN T2.Name = 'Cell' THEN 1 ELSE 0 END) AS REAL) * 100 / COUNT(T2.Name) FROM PersonPhone AS T1 INNER JOIN PhoneNumberType AS T2 ON T1.PhoneNumberTypeID = T2.PhoneNumberTypeID"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:7218",
+      "database_id": "bird:works_cycles",
+      "missing_tables": [
+        "personphone"
+      ],
+      "sql": "SELECT T2.Name FROM PersonPhone AS T1 INNER JOIN PhoneNumberType AS T2 ON T1.PhoneNumberTypeID = T2.PhoneNumberTypeID WHERE T1.PhoneNumber = '114-555-0100'"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:7227",
+      "database_id": "bird:works_cycles",
+      "missing_tables": [
+        "personphone"
+      ],
+      "sql": "SELECT ModifiedDate FROM PersonPhone WHERE PhoneNumber = '1 (11) 500 555-0143'"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:7325",
+      "database_id": "bird:works_cycles",
+      "missing_tables": [
+        "personphone"
+      ],
+      "sql": "SELECT T1.FirstName, T1.LastName, T2.PhoneNumber FROM Person AS T1 INNER JOIN PersonPhone AS T2 ON T1.BusinessEntityID = T2.BusinessEntityID INNER JOIN Employee AS T3 ON T1.BusinessEntityID = T3.BusinessEntityID WHERE T3.JobTitle = 'Marketing Manager'"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:7409",
+      "database_id": "bird:works_cycles",
+      "missing_tables": [
+        "personphone"
+      ],
+      "sql": "SELECT T2.PhoneNumber FROM Person AS T1 INNER JOIN PersonPhone AS T2 ON T1.BusinessEntityID = T2.BusinessEntityID WHERE T1.PersonType = 'SC'"
+    },
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:7438",
+      "database_id": "bird:works_cycles",
+      "missing_tables": [
+        "personphone"
+      ],
+      "sql": "SELECT PhoneNumber FROM PersonPhone WHERE BusinessEntityID = 12597"
+    }
+  ],
+  "scope_warnings": [
+    {
+      "source": "bird",
+      "split": "train",
+      "id": "bird:train:793",
+      "error": "Alias already used: T2",
+      "method": "AST physical-table nodes; query has no CTE",
+      "sql": "SELECT T1.text FROM twitter AS T1 INNER JOIN location AS T2 ON T2.LocationID = T1.LocationID INNER JOIN user AS T2 ON T2.UserID = T1.UserID INNER JOIN user AS T3 ON T1.UserID = T3.UserID WHERE T2.City = 'Buenos Aires' AND T3.Gender = 'Male'"
+    }
+  ],
+  "sources": {
+    "spider": {
+      "splits": {
+        "train": {
+          "total_queries": 7000,
+          "valid_queries": 7000,
+          "failed_queries": 0,
+          "counts": {
+            "1": 3931,
+            "2": 2335,
+            "3": 668,
+            "4": 58,
+            "5": 8
+          },
+          "percent": {
+            "1": 56.15714285714286,
+            "2": 33.357142857142854,
+            "3": 9.542857142857143,
+            "4": 0.8285714285714286,
+            "5": 0.11428571428571428
+          },
+          "structures": {
+            "explicit_join": 2771
+          }
+        },
+        "eval": {
+          "total_queries": 434,
+          "valid_queries": 434,
+          "failed_queries": 0,
+          "counts": {
+            "1": 243,
+            "2": 158,
+            "3": 33
+          },
+          "percent": {
+            "1": 55.99078341013825,
+            "2": 36.40552995391705,
+            "3": 7.6036866359447
+          },
+          "structures": {
+            "explicit_join": 173
+          }
+        },
+        "test": {
+          "total_queries": 600,
+          "valid_queries": 600,
+          "failed_queries": 0,
+          "counts": {
+            "1": 332,
+            "2": 235,
+            "3": 27,
+            "4": 6
+          },
+          "percent": {
+            "1": 55.333333333333336,
+            "2": 39.166666666666664,
+            "3": 4.5,
+            "4": 1.0
+          },
+          "structures": {
+            "explicit_join": 235
+          }
+        }
+      },
+      "total_queries": 8034,
+      "valid_queries": 8034,
+      "failed_queries": 0,
+      "counts": {
+        "1": 4506,
+        "2": 2728,
+        "3": 728,
+        "4": 64,
+        "5": 8
+      },
+      "percent": {
+        "1": 56.086631814787154,
+        "2": 33.95568832462036,
+        "3": 9.06148867313916,
+        "4": 0.7966143888473985,
+        "5": 0.09957679860592482
+      }
+    },
+    "bird": {
+      "splits": {
+        "train": {
+          "total_queries": 9428,
+          "valid_queries": 9428,
+          "failed_queries": 0,
+          "counts": {
+            "1": 2127,
+            "2": 5467,
+            "3": 1476,
+            "4": 299,
+            "5": 53,
+            "6": 6
+          },
+          "percent": {
+            "1": 22.56045820958846,
+            "2": 57.98684768773865,
+            "3": 15.655494272380144,
+            "4": 3.171404327535002,
+            "5": 0.5621552821383115,
+            "6": 0.06364022061943148
+          },
+          "structures": {
+            "explicit_join": 7212
+          }
+        },
+        "eval": {
+          "total_queries": 652,
+          "valid_queries": 652,
+          "failed_queries": 0,
+          "counts": {
+            "1": 183,
+            "2": 419,
+            "3": 50
+          },
+          "percent": {
+            "1": 28.067484662576685,
+            "2": 64.2638036809816,
+            "3": 7.668711656441718
+          },
+          "structures": {
+            "explicit_join": 452,
+            "cte": 2
+          }
+        },
+        "test": {
+          "total_queries": 882,
+          "valid_queries": 882,
+          "failed_queries": 0,
+          "counts": {
+            "1": 180,
+            "2": 516,
+            "3": 150,
+            "4": 35,
+            "5": 1
+          },
+          "percent": {
+            "1": 20.408163265306122,
+            "2": 58.50340136054422,
+            "3": 17.006802721088434,
+            "4": 3.9682539682539684,
+            "5": 0.11337868480725624
+          },
+          "structures": {
+            "explicit_join": 688,
+            "cte": 7
+          }
+        }
+      },
+      "total_queries": 10962,
+      "valid_queries": 10962,
+      "failed_queries": 0,
+      "counts": {
+        "1": 2490,
+        "2": 6402,
+        "3": 1676,
+        "4": 334,
+        "5": 54,
+        "6": 6
+      },
+      "percent": {
+        "1": 22.714833059660645,
+        "2": 58.40175150519978,
+        "3": 15.289180806422186,
+        "4": 3.0468892537858054,
+        "5": 0.49261083743842365,
+        "6": 0.05473453749315818
+      }
+    }
+  },
+  "failures": [],
+  "ast_scope_differences": [],
+  "date": "2026-10-20",
+  "input_sha256": {
+    "data/spider/indexes.jsonl": "e83fe1e8998888d114bddf8601f4fa1ac3155f2feaf7ef8847da420842c8f656",
+    "data/spider/train.jsonl": "22aedc669d3efb25e9eb8f4977f085fa6fec8ff54ca26475a65d72d8e5c4f66c",
+    "data/spider/eval.jsonl": "06c9a295608591caeb966110040f7df4bb6178e8680bd37873b0eb7c5731b44e",
+    "data/spider/test.jsonl": "998fc00f2f26d5d2050f9b31461e5edc8c4477c5bcab86eb90efe2846a92885d",
+    "data/bird/indexes.jsonl": "ddff009f04f67efb380a948f367a7fd2d9124095d441ecbf6eb8eca210818f4e",
+    "data/bird/train.jsonl": "aa6c7512f3d2a86680434947b676e3cfdc47f010f539fc5766668a6faa7cc951",
+    "data/bird/eval.jsonl": "11e76b383f1c08d4a40fb76c372ff142bf63c2b813693b50445427a104757f65",
+    "data/bird/test.jsonl": "fe56fa66f0cf7ae52f5627d3b8921dbddb940450211d9dda29a5bbf8168bcae8"
+  }
+}

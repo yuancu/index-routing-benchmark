@@ -1,24 +1,51 @@
 {
-  "candidate_count": 8,
-  "hard_negative_fraction": 0.75,
-  "indexes": 160,
-  "label_counts": {
-    "-1": 56238,
-    "0": 0,
-    "1": 0,
-    "2": 8034
+  "indexes": 815,
+  "indexes_with_rows": 802,
+  "label_semantics": "reference_table_usage",
+  "parse_failures": {
+    "train": 1
   },
-  "samples": 8034,
-  "samples_with_full_gold": 8034,
-  "seed": 17,
-  "split_indexes": {
-    "eval": 10,
-    "test": 10,
-    "train": 140
+  "source": "spider",
+  "splits": {
+    "eval": {
+      "all_positive_episodes": 39,
+      "episodes": 434,
+      "indexes": 40,
+      "pairs": 1944,
+      "positive_pairs": 658,
+      "positives_per_episode": {
+        "1": 243,
+        "2": 158,
+        "3": 33
+      }
+    },
+    "test": {
+      "all_positive_episodes": 19,
+      "episodes": 600,
+      "indexes": 40,
+      "pairs": 2613,
+      "positive_pairs": 907,
+      "positives_per_episode": {
+        "1": 332,
+        "2": 235,
+        "3": 27,
+        "4": 6
+      }
+    },
+    "train": {
+      "all_positive_episodes": 540,
+      "episodes": 6999,
+      "indexes": 735,
+      "pairs": 42110,
+      "positive_pairs": 10874,
+      "positives_per_episode": {
+        "1": 3931,
+        "2": 2335,
+        "3": 667,
+        "4": 58,
+        "5": 8
+      }
+    }
   },
-  "split_samples": {
-    "eval": 434,
-    "test": 600,
-    "train": 7000
-  }
+  "sql_parser": "sqlglot==26.9.0 (sqlite dialect)"
 }

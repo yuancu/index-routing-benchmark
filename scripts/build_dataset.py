@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""Build source-grouped index-routing data from Spider, BIRD, and FeB4RAG."""
+"""Build pairwise index-routing data.
+
+Spider and BIRD: every table is one index; a table is positive when the
+reference SQL references it. FeB4RAG: every resource is one index; labels come
+from its released document judgments.
+"""
 
 from __future__ import annotations
 
@@ -7,15 +12,16 @@ import argparse
 import csv
 import hashlib
 import json
-import math
 import random
-import re
-from collections import defaultdict
+from collections import Counter
 from pathlib import Path
-from typing import Any, Iterable, Iterator, Sequence
+from typing import Any, Iterable, Sequence
 
-import bm25s
+import sqlglot
+from sqlglot import exp
 
+
+SPLITS = ("train", "eval", "test")
 
 FEB4RAG_COLLECTIONS = [
     "arguana",
@@ -36,6 +42,9 @@ FEB4RAG_COLLECTIONS = [
     "webis-touche2020",
 ]
 
+# A FeB4RAG resource is positive when its best Top-10 document has this grade.
+FEB4RAG_POSITIVE_GRADE = 2
+
 NUMERIC_PROFILE_TYPES = {
     "long",
     "integer",
@@ -55,117 +64,40 @@ def read_rows(path: Path) -> list[dict[str, Any]]:
             return [json.loads(line) for line in handle if line.strip()]
     if path.suffix == ".json":
         with path.open(encoding="utf-8") as handle:
-            value = json.load(handle)
-        if isinstance(value, list):
-            return value
-        raise ValueError(f"{path} must contain a JSON array")
+            return json.load(handle)
     if path.suffix == ".parquet":
-        try:
-            import pyarrow.parquet as pq
-        except ImportError as exc:
-            raise RuntimeError(
-                "Reading Parquet requires pyarrow; install requirements.txt"
-            ) from exc
+        import pyarrow.parquet as pq
+
         return pq.read_table(path).to_pylist()
     raise ValueError(f"Unsupported input format: {path}")
 
 
-def iter_input_rows(paths: Sequence[Path]) -> Iterator[tuple[str, dict[str, Any]]]:
-    for path in paths:
-        split = infer_split(path)
-        for row in read_rows(path):
-            yield split, row
+def read_json(path: Path) -> Any:
+    with path.open(encoding="utf-8") as handle:
+        return json.load(handle)
 
 
-def infer_split(path: Path) -> str:
-    name = path.name.lower()
-    if "train" in name:
-        return "train"
-    if "dev" in name or "validation" in name:
-        return "dev"
-    if "test" in name:
-        return "test"
-    return "unknown"
+def write_jsonl(path: Path, rows: Iterable[dict[str, Any]]) -> None:
+    with path.open("w", encoding="utf-8") as handle:
+        for row in rows:
+            handle.write(json.dumps(row, ensure_ascii=False, sort_keys=True) + "\n")
 
 
-def normalize_text(value: str) -> str:
-    value = value.replace("_", " ")
-    return re.sub(r"\s+", " ", value).strip()
+def write_json(path: Path, value: Any) -> None:
+    with path.open("w", encoding="utf-8") as handle:
+        json.dump(value, handle, ensure_ascii=False, indent=2, sort_keys=True)
+        handle.write("\n")
 
 
-def make_description(name: str, tables: Sequence[dict[str, Any]]) -> str:
-    table_names = [str(table.get("name", "")).strip() for table in tables]
-    table_names = [name for name in table_names if name]
-    if table_names:
-        return f"Database with tables: {', '.join(table_names)}."
-    return f"Dataset about {normalize_text(name)}."
+def stable_seed(seed: int, value: str) -> int:
+    digest = hashlib.sha256(f"{seed}:{value}".encode()).digest()
+    return int.from_bytes(digest[:8], "big")
 
 
-def make_retrieval_text(
-    name: str, description: str, tables: Sequence[dict[str, Any]]
-) -> str:
-    parts = [normalize_text(name), description]
-    for table in tables:
-        parts.append(normalize_text(str(table.get("name", ""))))
-        for column in table.get("columns", []):
-            parts.append(normalize_text(str(column.get("name", ""))))
-            column_description = column.get("description")
-            if column_description:
-                parts.append(str(column_description))
-    return normalize_text(" ".join(parts))
-
-
-def parse_official_schema(row: dict[str, Any]) -> list[dict[str, Any]]:
-    table_names = row.get("table_names_original") or row.get("table_names") or []
-    column_names = row.get("column_names_original") or row.get("column_names") or []
-    column_types = row.get("column_types") or []
-    tables = [{"name": name, "columns": []} for name in table_names]
-    for position, column in enumerate(column_names):
-        if not isinstance(column, (list, tuple)) or len(column) != 2:
-            continue
-        table_position, column_name = column
-        if table_position is None or int(table_position) < 0:
-            continue
-        table_position = int(table_position)
-        if table_position >= len(tables):
-            continue
-        column_type = column_types[position] if position < len(column_types) else None
-        tables[table_position]["columns"].append(
-            {"name": column_name, "type": column_type}
-        )
-    return tables
-
-
-def parse_string_schema(schema_text: str) -> list[dict[str, Any]]:
-    tables = []
-    for table_part in schema_text.split("|"):
-        if ":" not in table_part:
-            continue
-        table_name, columns_text = table_part.split(":", 1)
-        columns = []
-        for column_text in columns_text.split(","):
-            column_text = column_text.strip()
-            match = re.match(r"(.+?)\s*\(([^()]*)\)\s*$", column_text)
-            if match:
-                columns.append(
-                    {"name": match.group(1).strip(), "type": match.group(2).strip()}
-                )
-            elif column_text:
-                columns.append({"name": column_text, "type": None})
-        tables.append({"name": table_name.strip(), "columns": columns})
-    return tables
-
-
-def schema_from_row(row: dict[str, Any]) -> list[dict[str, Any]]:
-    schema = row.get("schema")
-    if isinstance(schema, dict):
-        return parse_official_schema(schema)
-    if "table_names_original" in row or "table_names" in row:
-        return parse_official_schema(row)
-    string_schema = row.get("Schema (values (type))")
-    if isinstance(string_schema, str):
-        return parse_string_schema(string_schema)
-    return []
+def shuffled(values: Iterable[str], seed: int, key: str) -> list[str]:
+    values = list(values)
+    random.Random(stable_seed(seed, key)).shuffle(values)
+    return values
 
 
 def relational_profile_type(column_type: Any) -> str:
@@ -221,7 +153,7 @@ def make_profile(
     field_top_values: dict[str, list[dict[str, Any]]] | None = None,
     doc_count: int | None = None,
     samples: Sequence[dict[str, Any]] = (),
-    provenance: dict[str, str] | None = None,
+    provenance: dict[str, str],
 ) -> dict[str, Any]:
     """Create an OpenSearch-shaped profile and record each field's provenance."""
     return {
@@ -233,253 +165,289 @@ def make_profile(
         "samples": list(samples),
         "retrieval_capabilities": retrieval_capabilities(mapping),
         "default_pipelines": {},
-        "profile_provenance": provenance or {
-            "mapping_compressed": "source_schema",
-            "field_top_values": "unavailable",
-            "doc_count": "unavailable",
-            "samples": "unavailable",
-        },
+        "profile_provenance": provenance,
     }
 
 
-def make_relational_profile(
-    source_index_id: str,
-    tables: Sequence[dict[str, Any]],
-    sqlite_profile: dict[str, Any] | None = None,
+# --- Spider / BIRD: tables as indexes -------------------------------------
+
+
+def make_table_profile(
+    table_id: str, columns: list[dict[str, Any]], sqlite_table: dict[str, Any] | None
 ) -> dict[str, Any]:
     mapping = {
-        "__meta.table": "keyword",
-        "__meta.column_type": "keyword",
+        column["name"]: relational_profile_type(column["type"]) for column in columns
     }
-    type_table_counts: defaultdict[str, int] = defaultdict(int)
-    for table in tables:
-        table_name = str(table.get("name", "")).strip()
-        table_types = set()
-        for column in table.get("columns", []):
-            column_name = str(column.get("name", "")).strip()
-            if table_name and column_name:
-                mapping[f"{table_name}.{column_name}"] = relational_profile_type(
-                    column.get("type")
-                )
-            source_type = str(column.get("type") or "unknown").strip().lower()
-            table_types.add(source_type)
-        for source_type in table_types:
-            type_table_counts[source_type] += 1
-
-    field_top_values: dict[str, list[dict[str, Any]]] = {
-        "__meta.table": [
-            {"v": str(table.get("name", "")), "c": 1}
-            for table in tables[:10]
-            if table.get("name")
-        ],
-        "__meta.column_type": [
-            {"v": source_type, "c": count}
-            for source_type, count in sorted(
-                type_table_counts.items(), key=lambda item: (-item[1], item[0])
-            )[:10]
-        ],
-    }
-    richest_table = max(
-        tables, key=lambda table: len(table.get("columns", [])), default=None
-    )
-    samples = []
-    if richest_table:
-        samples.append(
-            {
-                "_sample_type": "table_schema",
-                "__meta": {
-                    "table": richest_table.get("name"),
-                    "column_type": sorted(
-                        {
-                            str(column.get("type") or "unknown").strip().lower()
-                            for column in richest_table.get("columns", [])
-                        }
-                    ),
-                },
-                "table": richest_table.get("name"),
-                "fields": {
-                    str(column.get("name", "")): column.get("type")
-                    for column in richest_table.get("columns", [])
-                    if column.get("name")
-                },
-            }
+    if sqlite_table is None:
+        return make_profile(
+            table_id,
+            mapping,
+            provenance={
+                "mapping_compressed": "source_table_schema",
+                "field_top_values": "unavailable",
+                "doc_count": "unavailable",
+                "samples": "unavailable",
+            },
         )
-    doc_count = len(tables)
-    provenance = {
-        "mapping_compressed": "source_database_schema_plus_routing_metadata",
-        "field_top_values": "source_schema_low_cardinality_metadata",
-        "doc_count": "source_schema_table_count",
-        "samples": "source_schema_richest_table",
-    }
-    if sqlite_profile and sqlite_profile["doc_count"] > 0:
-        for field in sqlite_profile["keyword_subfields"]:
-            mapping[field] = "keyword"
-        field_top_values.update(sqlite_profile["field_top_values"])
-        doc_count = sqlite_profile["doc_count"]
-        samples = sqlite_profile["samples"]
-        provenance.update(
-            {
-                "mapping_compressed": (
-                    "source_database_schema_plus_sqlite_keyword_subfields"
-                ),
-                "field_top_values": "sqlite_low_cardinality_text_values",
-                "doc_count": "sqlite_total_rows_across_tables",
-                "samples": "sqlite_richest_of_first_three_rows_per_table",
-            }
-        )
-
+    for field in sqlite_table["keyword_subfields"]:
+        mapping[field] = "keyword"
     return make_profile(
-        source_index_id,
+        table_id,
         mapping,
-        field_top_values=field_top_values,
-        doc_count=doc_count,
-        samples=samples,
-        provenance=provenance,
+        field_top_values=sqlite_table["field_top_values"],
+        doc_count=sqlite_table["doc_count"],
+        samples=sqlite_table["samples"],
+        provenance={
+            "mapping_compressed": "source_table_schema_plus_sqlite_keyword_subfields",
+            "field_top_values": "sqlite_low_cardinality_text_values",
+            "doc_count": "sqlite_table_row_count",
+            "samples": "sqlite_richest_of_first_three_rows",
+        },
     )
 
 
-def make_relational_index(
+def make_table_indexes(
     source: str,
-    source_index_id: str,
-    schema_row: dict[str, Any],
-    sqlite_profiles: dict[str, dict[str, Any]],
-) -> dict[str, Any]:
-    tables = schema_from_row(schema_row)
-    name = normalize_text(source_index_id)
-    description = make_description(name, tables)
+    schema: dict[str, Any],
+    routing_split: str,
+    sqlite_tables: dict[str, dict[str, Any]],
+    column_descriptions: dict[tuple[str, str], str],
+) -> list[dict[str, Any]]:
+    """Convert one official ``tables.json`` entry into table index records."""
+    database_id = f"{source}:{schema['db_id']}"
+    names = schema["table_names_original"]
+    columns: list[list[dict[str, Any]]] = [[] for _ in names]
+    column_owner = {}
+    for position, ((table, name), (_, natural_name), column_type) in enumerate(
+        zip(
+            schema["column_names_original"],
+            schema["column_names"],
+            schema["column_types"],
+        )
+    ):
+        if table < 0:
+            continue
+        column = {"name": name, "type": column_type}
+        if natural_name.lower() != name.lower().replace("_", " "):
+            column["natural_name"] = natural_name
+        description = column_descriptions.get((names[table].lower(), name.lower()))
+        if description:
+            column["description"] = description
+        columns[table].append(column)
+        column_owner[position] = (table, name)
+
+    primary_keys: dict[int, list[str]] = {}
+    for key in schema["primary_keys"]:
+        for position in key if isinstance(key, list) else [key]:
+            table, name = column_owner[position]
+            primary_keys.setdefault(table, []).append(name)
+    foreign_keys: dict[int, list[dict[str, Any]]] = {}
+    for position, referenced in schema["foreign_keys"]:
+        (table, name), (ref_table, ref_name) = (
+            column_owner[position],
+            column_owner[referenced],
+        )
+        foreign_keys.setdefault(table, []).append(
+            {
+                "columns": [name],
+                "referenced_index": f"{database_id}:{names[ref_table]}",
+                "referenced_columns": [ref_name],
+            }
+        )
+
+    sqlite_by_name = {name.lower(): profile for name, profile in sqlite_tables.items()}
+    indexes = []
+    for table, name in enumerate(names):
+        # SQLite bookkeeping tables (e.g. sqlite_sequence) are not routable data.
+        if name.lower().startswith("sqlite_"):
+            continue
+        if ":" in name:
+            raise ValueError(f"{database_id}: table name {name!r} contains ':'")
+        index_id = f"{database_id}:{name}"
+        description = f"Table {name}"
+        if schema["table_names"][table].lower() != name.lower().replace("_", " "):
+            description += f" ({schema['table_names'][table]})"
+        description += (
+            f" with columns: {', '.join(c['name'] for c in columns[table])}."
+        )
+        indexes.append(
+            {
+                "index_id": index_id,
+                "database_id": database_id,
+                "source": source,
+                "source_index_id": name,
+                "routing_split": routing_split,
+                "kind": "relational_table",
+                "name": name,
+                "description": description,
+                "profile": make_table_profile(
+                    index_id, columns[table], sqlite_by_name.get(name.lower())
+                ),
+                "schema": {
+                    "columns": columns[table],
+                    "primary_key": primary_keys.get(table, []),
+                    "foreign_keys": foreign_keys.get(table, []),
+                },
+            }
+        )
+    if len({index["index_id"].lower() for index in indexes}) != len(indexes):
+        raise ValueError(f"{database_id}: duplicate table names")
+    return indexes
+
+
+def referenced_tables(sql: str) -> set[str]:
+    """Lower-cased physical table names referenced anywhere in the SQL."""
+    tree = sqlglot.parse_one(sql, read="sqlite")
+    cte_names = {cte.alias_or_name.lower() for cte in tree.find_all(exp.CTE)}
+    # ponytail: an unreferenced CTE's tables still count; scope analysis if CTEs appear.
     return {
-        "index_id": f"{source}:{source_index_id}",
-        "source": source,
-        "source_index_id": source_index_id,
-        "kind": "relational_database",
-        "name": name,
-        "description": description,
-        "retrieval_text": make_retrieval_text(name, description, tables),
-        "profile": make_relational_profile(
-            source_index_id, tables, sqlite_profiles.get(source_index_id)
-        ),
-        "schema": {
-            "tables": tables,
-            "primary_keys": schema_row.get("primary_keys")
-            or schema_row.get("Primary Keys"),
-            "foreign_keys": schema_row.get("foreign_keys")
-            or schema_row.get("Foreign Keys"),
-        },
+        table.name.lower() for table in tree.find_all(exp.Table) if table.name
+    } - cte_names
+
+
+def build_sql_episode(
+    query: dict[str, Any], table_ids: list[str], seed: int
+) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
+    """Return (episode, None) or (None, parse failure)."""
+    failure = {
+        "id": query["id"],
+        "query": query["query"],
+        "sql": query["sql"],
+        "split": query["routing_split"],
     }
+    try:
+        used = referenced_tables(query["sql"])
+    except sqlglot.errors.SqlglotError as exc:
+        return None, {**failure, "reason": f"parse_error: {exc}"}
+    by_name = {index_id.rsplit(":", 1)[1].lower(): index_id for index_id in table_ids}
+    unknown = sorted(used - by_name.keys())
+    if unknown:
+        return None, {**failure, "reason": f"unknown_tables: {unknown}"}
+    if not used:
+        return None, {**failure, "reason": "no_physical_tables"}
+
+    gold = {by_name[name] for name in used}
+    candidates = shuffled(table_ids, seed, query["id"])
+    return {
+        "id": query["id"],
+        "query": query["query"],
+        "index": candidates,
+        "label": [int(index_id in gold) for index_id in candidates],
+        "sql": query["sql"],
+        "database_id": query["database_id"],
+    }, None
 
 
-def load_schema_rows(paths: Sequence[Path]) -> dict[str, dict[str, Any]]:
-    schemas: dict[str, dict[str, Any]] = {}
-    for path in paths:
-        for row in read_rows(path):
-            source_index_id = row.get("db_id")
-            if source_index_id:
-                schemas[str(source_index_id)] = row
-    return schemas
+def assign_database_splits(
+    source: str, databases_by_source_split: dict[str, set[str]], seed: int
+) -> dict[str, str]:
+    """Train databases stay train; held-out databases split evenly into eval/test."""
+    splits = {db: "train" for db in databases_by_source_split["train"]}
+    held_out = sorted(
+        databases_by_source_split["dev"] - splits.keys(),
+        key=lambda db: stable_seed(seed, f"routing-split:{source}:{db}"),
+    )
+    for position, db in enumerate(held_out):
+        splits[db] = "eval" if position < len(held_out) // 2 else "test"
+    return splits
 
 
-def load_spider(
-    question_paths: Sequence[Path],
-    schema_paths: Sequence[Path],
-    sqlite_profile_path: Path,
-) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-    schemas = load_schema_rows(schema_paths)
-    with sqlite_profile_path.open(encoding="utf-8") as handle:
-        sqlite_profiles = json.load(handle)
-    indexes: dict[str, dict[str, Any]] = {}
+def load_sql_queries(source: str, raw: Path) -> list[dict[str, Any]]:
+    if source == "spider":
+        inputs = [("train", "train.parquet"), ("dev", "validation.parquet")]
+    else:
+        inputs = [("train", "train_with_schema.json"), ("dev", "dev_with_schema.json")]
     queries = []
-    counters: defaultdict[str, int] = defaultdict(int)
-
-    for split, row in iter_input_rows(question_paths):
-        db_id = str(row["db_id"])
-        index_id = f"spider:{db_id}"
-        schema_row = schemas.get(db_id, row)
-        indexes.setdefault(
-            index_id,
-            make_relational_index("spider", db_id, schema_row, sqlite_profiles),
-        )
-        position = counters[split]
-        counters[split] += 1
-        queries.append(
-            {
-                "id": f"spider:{split}:{position}",
-                "query": row["question"],
-                "sql": row.get("query") or row.get("SQL"),
-                "source": "spider",
-                "source_split": split,
-                "source_query_id": position,
-                "origin_index": index_id,
-                "labels": {index_id: 2},
-                "label_provenance": {index_id: "origin_gold"},
-                "label_details": {},
-                "difficulty": row.get("difficulty"),
-            }
-        )
-    add_source_splits(indexes.values(), queries)
-    return list(indexes.values()), queries
+    for split, filename in inputs:
+        for position, row in enumerate(read_rows(raw / filename)):
+            query_number = row.get("question_id", position)
+            queries.append(
+                {
+                    "id": f"{source}:{split}:{query_number}",
+                    "query": row["question"],
+                    "sql": row.get("query") or row.get("SQL"),
+                    "database_id": f"{source}:{row['db_id']}",
+                    "db_id": row["db_id"],
+                    "source_split": split,
+                }
+            )
+    return queries
 
 
-def load_bird(
-    question_paths: Sequence[Path],
-    schema_paths: Sequence[Path],
-    sqlite_profile_path: Path,
-) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-    schemas = load_schema_rows(schema_paths)
-    with sqlite_profile_path.open(encoding="utf-8") as handle:
-        sqlite_profiles = json.load(handle)
-    indexes: dict[str, dict[str, Any]] = {}
-    queries = []
-    counters: defaultdict[str, int] = defaultdict(int)
-
-    for split, row in iter_input_rows(question_paths):
-        db_id = str(row["db_id"])
-        index_id = f"bird:{db_id}"
-        schema_row = schemas.get(db_id, row)
-        indexes.setdefault(
-            index_id,
-            make_relational_index("bird", db_id, schema_row, sqlite_profiles),
-        )
-        source_query_id = row.get("question_id")
-        if source_query_id is None:
-            source_query_id = counters[split]
-        position = counters[split]
-        counters[split] += 1
-        queries.append(
-            {
-                "id": f"bird:{split}:{source_query_id}",
-                "query": row["question"],
-                "sql": row.get("SQL") or row.get("query"),
-                "source": "bird",
-                "source_split": split,
-                "source_query_id": source_query_id,
-                "origin_index": index_id,
-                "labels": {index_id: 2},
-                "label_provenance": {index_id: "origin_gold"},
-                "label_details": {},
-                "difficulty": row.get("difficulty"),
-            }
-        )
-    add_source_splits(indexes.values(), queries)
-    return list(indexes.values()), queries
+def load_column_descriptions(raw: Path, db_id: str) -> dict[tuple[str, str], str]:
+    """BIRD ``database_description/<table>.csv`` column descriptions."""
+    descriptions = {}
+    for path in sorted((raw / "database_description" / db_id).glob("*.csv")):
+        data = path.read_bytes()
+        try:
+            text = data.decode("utf-8-sig")
+        except UnicodeDecodeError:  # some BIRD CSVs are Windows-1252
+            text = data.decode("cp1252", errors="replace")
+        for row in csv.DictReader(text.splitlines()):
+            row = {str(k).strip(): (v or "").strip() for k, v in row.items() if k}
+            column = row.get("original_column_name", "")
+            parts = [row.get("column_description", ""), row.get("value_description", "")]
+            description = " ".join(part for part in parts if part)
+            if column and description:
+                descriptions[(path.stem.lower(), column.lower())] = description
+    return descriptions
 
 
-def add_source_splits(
-    indexes: Iterable[dict[str, Any]], queries: Sequence[dict[str, Any]]
-) -> None:
-    splits_by_index: defaultdict[str, set[str]] = defaultdict(set)
+def build_sql_source(source: str, data_root: Path, seed: int) -> dict[str, Any]:
+    raw = data_root / "raw" / source
+    output_dir = data_root / source
+    schemas = {
+        schema["db_id"]: schema
+        for path in sorted(raw.glob("*tables.json"))
+        for schema in read_json(path)
+    }
+    sqlite_profiles = read_json(output_dir / "sqlite_profile_snapshot.json")
+    queries = load_sql_queries(source, raw)
+
+    databases_by_source_split: dict[str, set[str]] = {"train": set(), "dev": set()}
     for query in queries:
-        splits_by_index[query["origin_index"]].add(query["source_split"])
-    for index in indexes:
-        index["source_splits"] = sorted(splits_by_index[index["index_id"]])
+        databases_by_source_split[query["source_split"]].add(query["db_id"])
+    database_splits = assign_database_splits(source, databases_by_source_split, seed)
+
+    indexes = []
+    table_ids_by_database: dict[str, list[str]] = {}
+    for db_id in sorted(database_splits):
+        tables = make_table_indexes(
+            source,
+            schemas[db_id],
+            database_splits[db_id],
+            sqlite_profiles.get(db_id, {}),
+            load_column_descriptions(raw, db_id),
+        )
+        indexes.extend(tables)
+        table_ids_by_database[f"{source}:{db_id}"] = [t["index_id"] for t in tables]
+
+    episodes, failures = [], []
+    for query in queries:
+        query["routing_split"] = database_splits[query["db_id"]]
+        episode, failure = build_sql_episode(
+            query, table_ids_by_database[query["database_id"]], seed
+        )
+        if episode:
+            episode["_split"] = query["routing_split"]
+            episodes.append(episode)
+        else:
+            failures.append(failure)
+    write_jsonl(output_dir / "parse_failures.jsonl", failures)
+    return write_source(
+        source,
+        output_dir,
+        indexes,
+        episodes,
+        {
+            "label_semantics": "reference_table_usage",
+            "sql_parser": f"sqlglot=={sqlglot.__version__} (sqlite dialect)",
+            "parse_failures": dict(Counter(f["split"] for f in failures)),
+        },
+    )
 
 
-def read_feb4rag_resource_scores(path: Path) -> dict[tuple[str, str], int]:
-    scores = {}
-    with path.open(encoding="utf-8") as handle:
-        for line in handle:
-            query_id, _, resource, score = line.split()
-            scores[(query_id, resource)] = int(score)
-    return scores
+# --- FeB4RAG: resources as indexes ----------------------------------------
 
 
 def read_feb4rag_document_grades(
@@ -506,435 +474,173 @@ def read_feb4rag_document_grades(
     return maximum_grades
 
 
-def feb4rag_index_label(max_document_grade: int) -> int:
-    if max_document_grade == 3:
-        return 2
-    if max_document_grade in (1, 2):
-        return 1
-    return 0
-
-
-def load_feb4rag(
-    root: Path,
-) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-    dataset_root = root / "dataset"
-    requests_path = dataset_root / "queries" / "requests.jsonl"
-    mapping_path = dataset_root / "queries" / "rid_mapping.tsv"
-    engines_path = dataset_root / "engines" / "engines.csv"
-    rm_qrels_path = dataset_root / "qrels" / "BEIR-QRELS-RM.txt"
-    rs_qrels_path = dataset_root / "qrels" / "BEIR-QRELS-RS.txt"
-    profile_snapshot_path = root.parents[1] / "feb4rag" / "profile_snapshot.json"
-    with profile_snapshot_path.open(encoding="utf-8") as handle:
-        profile_snapshot = json.load(handle)
-
-    request_rows = read_rows(requests_path)
-    origins = {}
-    with mapping_path.open(encoding="utf-8") as handle:
-        for line in handle:
-            query_id, resource, source_query_id = line.rstrip("\n").split("\t")
-            origins[query_id] = (resource, source_query_id)
-
-    indexes = []
-    with engines_path.open(encoding="utf-8", newline="") as handle:
-        for row in csv.DictReader(handle):
-            resource = row["name"]
-            description = row.get("Description", "")
-            profile_facts = profile_snapshot[resource]
-            doc_count = profile_facts["doc_count"]
-            vertical = row.get("vertical") or "unknown"
-            task = row.get("Task") or "unknown"
-            samples = []
-            for sample in profile_facts["samples"]:
-                enriched_sample = dict(sample)
-                enriched_sample["__meta"] = {
-                    "resource": resource,
-                    "vertical": vertical,
-                    "task": task,
-                }
-                samples.append(enriched_sample)
-            feb4rag_mapping = {
-                "_id": "keyword",
-                "title": "text",
-                "text": "text",
-                "__meta.resource": "keyword",
-                "__meta.vertical": "keyword",
-                "__meta.task": "keyword",
-            }
-            for field in profile_facts["keyword_subfields"]:
-                feb4rag_mapping[field] = "keyword"
-            feb4rag_top_values = {
-                "__meta.resource": [{"v": resource, "c": doc_count}],
-                "__meta.vertical": [{"v": vertical, "c": doc_count}],
-                "__meta.task": [{"v": task, "c": doc_count}],
-            }
-            feb4rag_top_values.update(profile_facts["field_top_values"])
-            retrieval_text = " ".join(
-                value
-                for value in [
-                    resource,
-                    row.get("vertical", ""),
-                    description,
-                    row.get("Task", ""),
-                    row.get("Objective (original)", ""),
-                ]
-                if value
-            )
-            indexes.append(
-                {
-                    "index_id": f"feb4rag:{resource}",
-                    "source": "feb4rag",
-                    "source_index_id": resource,
-                    "kind": "document_collection",
-                    "name": resource,
-                    "description": description,
-                    "retrieval_text": normalize_text(retrieval_text),
-                    "profile": make_profile(
-                        resource,
-                        feb4rag_mapping,
-                        field_top_values=feb4rag_top_values,
-                        doc_count=doc_count,
-                        samples=samples,
-                        provenance={
-                            "mapping_compressed": (
-                                "beir_corpus_schema_plus_routing_metadata"
-                            ),
-                            "field_top_values": (
-                                profile_facts["field_top_values_source"]
-                                + "_plus_engine_metadata"
-                            ),
-                            "doc_count": profile_facts["doc_count_source"],
-                            "samples": profile_facts["sample_source"],
-                        },
-                    ),
-                    "schema": None,
-                    "vertical": row.get("vertical"),
-                    "task": row.get("Task"),
-                    "source_splits": ["all"],
-                }
-            )
-
-    document_grades = read_feb4rag_document_grades(
-        rm_qrels_path, len(request_rows)
-    )
-    resource_scores = read_feb4rag_resource_scores(rs_qrels_path)
-    queries = []
-    for row in request_rows:
-        query_id = str(row["_id"])
-        origin_resource, source_query_id = origins.get(query_id, (None, None))
-        labels = {}
-        provenance = {}
-        label_details = {}
-        for resource in FEB4RAG_COLLECTIONS:
-            index_id = f"feb4rag:{resource}"
-            max_grade = document_grades[(query_id, resource)]
-            labels[index_id] = feb4rag_index_label(max_grade)
-            provenance[index_id] = "feb4rag_fused_top10_judgment"
-            label_details[index_id] = {
-                "max_document_grade": max_grade,
-                "resource_score": resource_scores[(query_id, resource)],
-            }
-        queries.append(
-            {
-                "id": f"feb4rag:all:{query_id}",
-                "query": row["text"],
-                "sql": None,
-                "source": "feb4rag",
-                "source_split": "all",
-                "source_query_id": source_query_id or query_id,
-                "origin_index": (
-                    f"feb4rag:{origin_resource}" if origin_resource else None
+def make_feb4rag_index(row: dict[str, str], facts: dict[str, Any]) -> dict[str, Any]:
+    resource = row["name"]
+    doc_count = facts["doc_count"]
+    vertical = row.get("vertical") or "unknown"
+    task = row.get("Task") or "unknown"
+    meta = {"resource": resource, "vertical": vertical, "task": task}
+    mapping = {
+        "_id": "keyword",
+        "title": "text",
+        "text": "text",
+        "__meta.resource": "keyword",
+        "__meta.vertical": "keyword",
+        "__meta.task": "keyword",
+    }
+    for field in facts["keyword_subfields"]:
+        mapping[field] = "keyword"
+    top_values = {
+        f"__meta.{key}": [{"v": value, "c": doc_count}] for key, value in meta.items()
+    }
+    top_values.update(facts["field_top_values"])
+    return {
+        "index_id": f"feb4rag:{resource}",
+        "source": "feb4rag",
+        "source_index_id": resource,
+        "kind": "document_collection",
+        "name": resource,
+        "description": row.get("Description", ""),
+        "profile": make_profile(
+            resource,
+            mapping,
+            field_top_values=top_values,
+            doc_count=doc_count,
+            samples=[{**sample, "__meta": meta} for sample in facts["samples"]],
+            provenance={
+                "mapping_compressed": "beir_corpus_schema_plus_routing_metadata",
+                "field_top_values": (
+                    facts["field_top_values_source"] + "_plus_engine_metadata"
                 ),
-                "labels": labels,
-                "label_provenance": provenance,
-                "label_details": label_details,
-                "difficulty": None,
+                "doc_count": facts["doc_count_source"],
+                "samples": facts["sample_source"],
+            },
+        ),
+        "vertical": row.get("vertical"),
+        "task": row.get("Task"),
+    }
+
+
+def build_feb4rag(data_root: Path, seed: int) -> dict[str, Any]:
+    dataset = data_root / "raw" / "feb4rag" / "dataset"
+    output_dir = data_root / "feb4rag"
+    facts = read_json(output_dir / "profile_snapshot.json")
+    with (dataset / "engines" / "engines.csv").open(encoding="utf-8", newline="") as h:
+        indexes = [make_feb4rag_index(row, facts[row["name"]]) for row in csv.DictReader(h)]
+
+    ordered = sorted(
+        indexes, key=lambda index: stable_seed(seed, f"routing-split:{index['index_id']}")
+    )
+    for position, index in enumerate(ordered):
+        index["routing_split"] = "train" if position < 10 else "eval" if position < 13 else "test"
+    split_by_index = {index["index_id"]: index["routing_split"] for index in indexes}
+
+    origins = {}
+    with (dataset / "queries" / "rid_mapping.tsv").open(encoding="utf-8") as handle:
+        for line in handle:
+            query_id, resource, _ = line.rstrip("\n").split("\t")
+            origins[query_id] = f"feb4rag:{resource}"
+    requests = read_rows(dataset / "queries" / "requests.jsonl")
+    grades = read_feb4rag_document_grades(
+        dataset / "qrels" / "BEIR-QRELS-RM.txt", len(requests)
+    )
+
+    episodes = []
+    for row in requests:
+        query_id = str(row["_id"])
+        split = split_by_index[origins[query_id]]
+        episode_id = f"feb4rag:all:{query_id}"
+        candidates = shuffled(
+            (i for i in sorted(split_by_index) if split_by_index[i] == split),
+            seed,
+            episode_id,
+        )
+        max_grades = [grades[(query_id, i.split(":", 1)[1])] for i in candidates]
+        episodes.append(
+            {
+                "id": episode_id,
+                "query": row["text"],
+                "index": candidates,
+                "label": [int(g >= FEB4RAG_POSITIVE_GRADE) for g in max_grades],
+                "max_document_grade": max_grades,
+                "origin_index": origins[query_id],
+                "_split": split,
             }
         )
-    return indexes, queries
-
-
-def stable_seed(seed: int, value: str) -> int:
-    digest = hashlib.sha256(f"{seed}:{value}".encode()).digest()
-    return int.from_bytes(digest[:8], "big")
-
-
-def assign_routing_splits(
-    indexes: Sequence[dict[str, Any]],
-    queries: Sequence[dict[str, Any]],
-    seed: int,
-) -> None:
-    indexes_by_source: defaultdict[str, list[dict[str, Any]]] = defaultdict(list)
-    for index in indexes:
-        indexes_by_source[index["source"]].append(index)
-
-    for source, source_indexes in indexes_by_source.items():
-        if source in {"spider", "bird"}:
-            train_indexes = [
-                index for index in source_indexes if "train" in index["source_splits"]
-            ]
-            held_out_indexes = [
-                index for index in source_indexes if index not in train_indexes
-            ]
-            for index in train_indexes:
-                index["routing_split"] = "train"
-            held_out_indexes.sort(
-                key=lambda index: stable_seed(
-                    seed, f"routing-split:{index['index_id']}"
-                )
+    return write_source(
+        "feb4rag",
+        output_dir,
+        indexes,
+        episodes,
+        {
+            "label_semantics": (
+                f"max_top10_document_grade >= {FEB4RAG_POSITIVE_GRADE}"
             )
-            eval_count = len(held_out_indexes) // 2
-            for index in held_out_indexes[:eval_count]:
-                index["routing_split"] = "eval"
-            for index in held_out_indexes[eval_count:]:
-                index["routing_split"] = "test"
-        elif source == "feb4rag":
-            ordered = sorted(
-                source_indexes,
-                key=lambda index: stable_seed(
-                    seed, f"routing-split:{index['index_id']}"
-                ),
-            )
-            for position, index in enumerate(ordered):
-                if position < 10:
-                    index["routing_split"] = "train"
-                elif position < 13:
-                    index["routing_split"] = "eval"
-                else:
-                    index["routing_split"] = "test"
-        else:
-            raise ValueError(f"Unknown source: {source}")
-
-    split_by_index = {
-        index["index_id"]: index["routing_split"] for index in indexes
-    }
-    for query in queries:
-        query["routing_split"] = split_by_index[query["origin_index"]]
-
-
-def retrieve_ranked_ids(
-    retriever: bm25s.BM25,
-    query: str,
-    source_index_ids: Sequence[str],
-) -> tuple[list[str], dict[str, float]]:
-    query_tokens = bm25s.tokenize([query], show_progress=False)
-    results, scores = retriever.retrieve(
-        query_tokens, corpus=list(source_index_ids), k=len(source_index_ids)
+        },
     )
-    ranked = [str(index_id) for index_id in results[0]]
-    score_by_id = {
-        str(index_id): float(score)
-        for index_id, score in zip(results[0], scores[0])
-    }
-    return ranked, score_by_id
 
 
-def build_source_retriever(
-    indexes: Sequence[dict[str, Any]],
-) -> tuple[bm25s.BM25, list[str]]:
-    index_ids = [row["index_id"] for row in indexes]
-    corpus = [row["retrieval_text"] for row in indexes]
-    corpus_tokens = bm25s.tokenize(corpus, show_progress=False)
-    retriever = bm25s.BM25()
-    retriever.index(corpus_tokens, show_progress=False)
-    return retriever, index_ids
+# --- Output -----------------------------------------------------------------
 
 
-def choose_candidates(
-    query: dict[str, Any],
-    ranked_ids: Sequence[str],
-    bm25_scores: dict[str, float],
-    candidate_count: int,
-    hard_negative_fraction: float,
-    seed: int,
+def write_source(
+    source: str,
+    output_dir: Path,
+    indexes: list[dict[str, Any]],
+    episodes: list[dict[str, Any]],
+    extra_summary: dict[str, Any],
 ) -> dict[str, Any]:
-    labels = query["labels"]
-    eligible_ids = set(ranked_ids)
-    full_gold = {
-        index_id
-        for index_id, label in labels.items()
-        if label == 2 and index_id in eligible_ids
+    output_dir.mkdir(parents=True, exist_ok=True)
+    indexes = sorted(indexes, key=lambda index: index["index_id"])
+    write_jsonl(output_dir / "indexes.jsonl", indexes)
+    summary = {
+        "source": source,
+        "indexes": len(indexes),
+        "indexes_with_rows": sum(bool(i["profile"]["doc_count"]) for i in indexes),
+        **extra_summary,
+        "splits": {},
     }
-    selected = list(sorted(full_gold))
-
-    target_count = min(len(ranked_ids), max(candidate_count, len(selected)))
-    remaining_slots = target_count - len(selected)
-    hard_count = min(
-        remaining_slots, math.ceil(remaining_slots * hard_negative_fraction)
-    )
-
-    bm25_candidates = [
-        index_id for index_id in ranked_ids if index_id not in full_gold
-    ]
-    selected.extend(bm25_candidates[:hard_count])
-
-    remaining_ids = [
-        index_id for index_id in ranked_ids if index_id not in set(selected)
-    ]
-    rng = random.Random(stable_seed(seed, query["id"]))
-    rng.shuffle(remaining_ids)
-    selected.extend(remaining_ids[: target_count - len(selected)])
-    rng.shuffle(selected)
-
-    output_labels = [labels.get(index_id, -1) for index_id in selected]
-    output = {
-        "id": query["id"],
-        "query": query["query"],
-        "index": selected,
-        "label": output_labels,
-        "sql": query["sql"],
-        "origin_index": query["origin_index"],
-        "_source": query["source"],
-        "_routing_split": query["routing_split"],
-        "_has_full_gold": any(label == 2 for label in output_labels),
-    }
-    if query.get("difficulty") is not None:
-        output["difficulty"] = query["difficulty"]
-    return output
-
-
-def write_jsonl(path: Path, rows: Iterable[dict[str, Any]]) -> None:
-    with path.open("w", encoding="utf-8") as handle:
-        for row in rows:
-            public_row = {
-                key: value for key, value in row.items() if not key.startswith("_")
-            }
-            handle.write(
-                json.dumps(public_row, ensure_ascii=False, sort_keys=True) + "\n"
-            )
+    by_split: dict[str, list[dict[str, Any]]] = {split: [] for split in SPLITS}
+    for episode in episodes:
+        by_split[episode.pop("_split")].append(episode)
+    for split, rows in by_split.items():
+        write_jsonl(output_dir / f"{split}.jsonl", rows)
+        labels = [label for row in rows for label in row["label"]]
+        summary["splits"][split] = {
+            "indexes": sum(i["routing_split"] == split for i in indexes),
+            "episodes": len(rows),
+            "pairs": len(labels),
+            "positive_pairs": sum(labels),
+            "all_positive_episodes": sum(all(row["label"]) for row in rows),
+            "positives_per_episode": dict(
+                sorted(Counter(sum(row["label"]) for row in rows).items())
+            ),
+        }
+    write_json(output_dir / "summary.json", summary)
+    return summary
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     default_data_root = Path(__file__).resolve().parents[1] / "data"
     parser.add_argument("--data-root", type=Path, default=default_data_root)
-    parser.add_argument("--candidate-count", type=int, default=8)
-    parser.add_argument("--hard-negative-fraction", type=float, default=0.75)
+    parser.add_argument(
+        "--sources", nargs="+", default=["spider", "bird", "feb4rag"]
+    )
     parser.add_argument("--seed", type=int, default=17)
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
-    if args.candidate_count < 1:
-        raise ValueError("--candidate-count must be positive")
-    if not 0 <= args.hard_negative_fraction <= 1:
-        raise ValueError("--hard-negative-fraction must be between 0 and 1")
-
-    raw_root = args.data_root / "raw"
-    source_data = {
-        "spider": load_spider(
-            [
-                raw_root / "spider" / "train.parquet",
-                raw_root / "spider" / "validation.parquet",
-            ],
-            [raw_root / "spider" / "spider_schema_rows_v2.json"],
-            args.data_root / "spider" / "sqlite_profile_snapshot.json",
-        ),
-        "bird": load_bird(
-            [
-                raw_root / "bird" / "train_with_schema.json",
-                raw_root / "bird" / "dev_with_schema.json",
-            ],
-            [],
-            args.data_root / "bird" / "sqlite_profile_snapshot.json",
-        ),
-        "feb4rag": load_feb4rag(raw_root / "feb4rag"),
+    summaries = {
+        source: (
+            build_feb4rag(args.data_root, args.seed)
+            if source == "feb4rag"
+            else build_sql_source(source, args.data_root, args.seed)
+        )
+        for source in args.sources
     }
-    all_indexes = [
-        index for indexes, _ in source_data.values() for index in indexes
-    ]
-    all_queries = [
-        query for _, queries in source_data.values() for query in queries
-    ]
-    assign_routing_splits(all_indexes, all_queries, args.seed)
-
-    indexes_by_source: defaultdict[str, list[dict[str, Any]]] = defaultdict(list)
-    for index in all_indexes:
-        indexes_by_source[index["source"]].append(index)
-
-    indexes_by_pool: defaultdict[
-        tuple[str, str], list[dict[str, Any]]
-    ] = defaultdict(list)
-    for index in all_indexes:
-        indexes_by_pool[
-            (index["source"], index["routing_split"])
-        ].append(index)
-
-    retrievers = {
-        pool: build_source_retriever(indexes)
-        for pool, indexes in indexes_by_pool.items()
-    }
-
-    samples = []
-    for query in all_queries:
-        retriever, source_index_ids = retrievers[
-            (query["source"], query["routing_split"])
-        ]
-        ranked_ids, bm25_scores = retrieve_ranked_ids(
-            retriever, query["query"], source_index_ids
-        )
-        samples.append(
-            choose_candidates(
-                query,
-                ranked_ids,
-                bm25_scores,
-                args.candidate_count,
-                args.hard_negative_fraction,
-                args.seed,
-            )
-        )
-
-    summaries = {}
-    for source in sorted(indexes_by_source):
-        output_dir = args.data_root / source
-        output_dir.mkdir(parents=True, exist_ok=True)
-        source_indexes = sorted(
-            indexes_by_source[source], key=lambda row: row["index_id"]
-        )
-        source_samples = [row for row in samples if row["_source"] == source]
-        write_jsonl(output_dir / "indexes.jsonl", source_indexes)
-        for split in ("train", "eval", "test"):
-            split_samples = [
-                row for row in source_samples if row["_routing_split"] == split
-            ]
-            write_jsonl(output_dir / f"{split}.jsonl", split_samples)
-
-        summary = {
-            "indexes": len(source_indexes),
-            "samples": len(source_samples),
-            "candidate_count": args.candidate_count,
-            "hard_negative_fraction": args.hard_negative_fraction,
-            "seed": args.seed,
-            "split_indexes": {
-                split: sum(
-                    index["routing_split"] == split for index in source_indexes
-                )
-                for split in ("train", "eval", "test")
-            },
-            "split_samples": {
-                split: sum(
-                    row["_routing_split"] == split for row in source_samples
-                )
-                for split in ("train", "eval", "test")
-            },
-            "samples_with_full_gold": sum(
-                row["_has_full_gold"] for row in source_samples
-            ),
-            "label_counts": {
-                str(label): sum(
-                    candidate_label == label
-                    for row in source_samples
-                    for candidate_label in row["label"]
-                )
-                for label in (-1, 0, 1, 2)
-            },
-        }
-        with (output_dir / "summary.json").open(
-            "w", encoding="utf-8"
-        ) as handle:
-            json.dump(summary, handle, ensure_ascii=False, indent=2, sort_keys=True)
-            handle.write("\n")
-        summaries[source] = summary
     print(json.dumps(summaries, ensure_ascii=False, indent=2, sort_keys=True))
 
 
